@@ -6,45 +6,45 @@ from datetime import date
 # =====================================================================
 # CONFIGURACIÓN INICIAL Y DISEÑO MÓVIL PREMIUM (CSS TOTAL)
 # =====================================================================
-st.set_page_config(page_title="Nutriveritas", page_icon="🥇", layout="wide")
+st.set_page_config(page_title="Nutriveritas", layout="wide")
 
-# Inyección CSS Maestro para limpiar Streamlit y optimizar pantallas móviles
+# Inyección CSS Maestro corregida (¡Revivimos el menú!)
 st.markdown("""
     <style>
-    /* Ocultar elementos innecesarios de Streamlit en móviles */
+    /* Ocultar solo la basura, mantener la cabecera transparente para el menú */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
     .stAppDeployButton {display: none;}
+    header {background-color: transparent !important;}
     
     /* Optimizar márgenes globales en teléfonos */
     .block-container {
-        padding-top: 1rem !important;
+        padding-top: 2rem !important;
         padding-bottom: 1rem !important;
         padding-left: 0.8rem !important;
         padding-right: 0.8rem !important;
     }
 
-    /* CONTENEDOR MAESTRO DE SCROLL (Para la lista de alimentos) */
+    /* CONTENEDOR MAESTRO DE SCROLL */
     .mobile-scroll-box {
         max-height: 340px; 
         overflow-y: auto;
-        -webkit-overflow-scrolling: touch; /* Habilita scroll táctil ultra fluido en iOS/Android */
+        -webkit-overflow-scrolling: touch;
         padding-right: 5px;
         margin-top: 10px;
     }
 
-    /* DISEÑO DE FILA UNIFICADA (Tarjeta + Botón en la misma línea) */
+    /* DISEÑO DE FILA UNIFICADA (Tarjeta + Botón) */
     .food-row-container {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background-color: #1e222b;
-        border-left: 4px solid #ffcc00;
+        background-color: #1e293b; /* Azul pizarra oscuro */
+        border-left: 4px solid #ffcc00; /* Borde dorado */
         border-radius: 8px;
         padding: 10px 12px;
         margin-bottom: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
     
     .food-info-side {
@@ -53,30 +53,31 @@ st.markdown("""
     }
 
     .food-row-title {
-        font-size: 14px;
-        font-weight: bold;
-        color: #ffffff;
-        margin-bottom: 2px;
+        font-size: 15px;
+        font-weight: 600;
+        color: #f8fafc;
+        margin-bottom: 4px;
     }
 
     .food-row-caption {
-        font-size: 11px;
-        color: #a3a8b4;
-        line-height: 1.3;
+        font-size: 12px;
+        color: #94a3b8;
+        line-height: 1.4;
     }
 
-    /* Estilo del Mini Botón Químico de Borrado Nativo HTML */
+    /* Botón Químico de Borrado Nativo */
     .btn-delete-native {
-        background-color: #ff4b4b22;
-        color: #ff4b4b;
-        border: 1px solid #ff4b4b44;
+        background-color: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
         border-radius: 6px;
-        padding: 6px 10px;
+        padding: 8px 12px;
         font-size: 14px;
         cursor: pointer;
         text-decoration: none;
         display: inline-block;
         text-align: center;
+        transition: all 0.2s;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -121,7 +122,6 @@ fecha_hoy_texto = date.today().isoformat()
 # =====================================================================
 # SECCIÓN 2: CONTROLADORES DE BORRADO DE ALIMENTOS
 # =====================================================================
-# Detectar si se presionó un botón de borrado nativo a través de parámetros URL query
 query_params = st.query_params
 if "delete_id" in query_params:
     id_a_borrar = query_params["delete_id"]
@@ -129,7 +129,6 @@ if "delete_id" in query_params:
         cursor = conn_del.cursor()
         cursor.execute("DELETE FROM consumo_diario WHERE id = ?", (id_a_borrar,))
         conn_del.commit()
-    # Limpiar los parámetros de la URL para evitar bucles de borrado
     st.query_params.clear()
     st.rerun()
 
@@ -151,8 +150,8 @@ with st.sidebar:
 # =====================================================================
 # SECCIÓN 4: BÓVEDA
 # =====================================================================
-with st.expander("🔐 Administrar Bóveda (Agregar o Borrar Alimentos)", expanded=False):
-    tab_manual, tab_gestionar = st.tabs(["✍️ Carga Manual", "🗑️ Ver / Borrar Bóveda"])
+with st.expander("🔐 Administrar Bóveda", expanded=False):
+    tab_manual, tab_gestionar = st.tabs(["✍️ Carga Manual", "🗑️ Ver / Borrar"])
     
     with tab_manual:
         with st.form("form_nuevo_alimento"):
@@ -162,7 +161,6 @@ with st.expander("🔐 Administrar Bóveda (Agregar o Borrar Alimentos)", expand
             nuevo_prot = col_p.number_input("Prot (g)", min_value=0.0)
             nuevo_carb = col_cb.number_input("Carbs (g)", min_value=0.0)
             nuevo_gras = col_g.number_input("Grasas (g)", min_value=0.0)
-            
             nuevo_azucar = st.number_input("Azúcar Añadida (g)", min_value=0.0)
             btn_guardar = st.form_submit_button("💾 Guardar Alimento")
             
@@ -185,7 +183,7 @@ with st.expander("🔐 Administrar Bóveda (Agregar o Borrar Alimentos)", expand
         with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_gest:
             df_boveda = pd.read_sql_query("SELECT * FROM productos", conn_gest)
             if not df_boveda.empty:
-                alimento_borrar = st.selectbox("Alimento a eliminar de la faz de la tierra:", df_boveda['nombre'].tolist(), index=None)
+                alimento_borrar = st.selectbox("Alimento a eliminar:", df_boveda['nombre'].tolist(), index=None)
                 if st.button("🚨 Eliminar Definitivamente") and alimento_borrar:
                     cursor = conn_gest.cursor()
                     cursor.execute("DELETE FROM productos WHERE nombre = ?", (alimento_borrar,))
@@ -193,14 +191,14 @@ with st.expander("🔐 Administrar Bóveda (Agregar o Borrar Alimentos)", expand
                     st.rerun()
 
 # =====================================================================
-# SECCIÓN 5: AGREGAR REGISTROS (COMIDA Y AGUA)
+# SECCIÓN 5: AGREGAR REGISTROS
 # =====================================================================
-st.title("🥇 Nutriveritas")
+# ¡Adiós a la medalla redundante!
+st.title("Nutriveritas")
 
 with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_main:
     df_productos = pd.read_sql_query("SELECT * FROM productos", conn_main)
 
-# Layout compacto optimizado para móviles (Filas consecutivas limpias)
 st.markdown("### 🍽️ Agregar Registro")
 if not df_productos.empty:
     producto_seleccionado = st.selectbox("Busca un alimento:", df_productos['nombre'].tolist(), index=None, placeholder="Ej: Huevo Blanco...")
@@ -210,7 +208,6 @@ if not df_productos.empty:
         prod_data = df_productos[df_productos['nombre'] == producto_seleccionado].iloc[0]
         factor = float(gramos_consumir) / 100.0
         
-        # Vista rápida matemática en columnas compactas
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("🔥 Kcal", f"{(float(prod_data['calorias'] or 0)*factor):.1f}")
         c2.metric("🥩 Prot", f"{(float(prod_data['proteinas'] or 0)*factor):.1f}g")
@@ -241,7 +238,7 @@ with col_w2:
         st.rerun()
 
 # =====================================================================
-# SECCIÓN 6: INTERFAZ DE PROGRESO DE HOY
+# SECCIÓN 6: PROGRESO DE HOY
 # =====================================================================
 st.markdown("---")
 st.markdown("### 📊 Tu Progreso de Hoy")
@@ -270,7 +267,6 @@ if not df_hoy.empty:
         tot_azucar += row['azucar_anadida'] * f
         tot_edul += sum([row[ed] for ed in EDULCORANTES_COLS]) * f
 
-# Barras de Progreso estéticas en el teléfono
 st.markdown(f"**🔥 Calorías:** {tot_cal:.1f} / {meta_cal} kcal")
 st.progress(min(tot_cal / meta_cal, 1.0) if meta_cal > 0 else 0.0)
 
@@ -283,20 +279,19 @@ st.progress(min(tot_carb / meta_carb, 1.0) if meta_carb > 0 else 0.0)
 st.markdown(f"**💧 Agua:** {tot_agua:.0f}ml / {meta_agua}ml")
 st.progress(min(tot_agua / meta_agua, 1.0) if meta_agua > 0 else 0.0)
 
-st.markdown(f"**🍬 Azúcar Añadida (Límite):** {tot_azucar:.1f}g / {limite_azucar}g")
+st.markdown(f"**🍬 Azúcar Añadida:** {tot_azucar:.1f}g / {limite_azucar}g")
 st.progress(min(tot_azucar / limite_azucar, 1.0) if limite_azucar > 0 else 0.0)
 
 st.markdown(f"**🧪 TOTAL Edulcorantes:** {tot_edul:.1f}mg / {limite_edulcorantes}mg")
 st.progress(min(tot_edul / limite_edulcorantes, 1.0) if limite_edulcorantes > 0 else 0.0)
 
 # =====================================================================
-# 🚨 SECCIÓN MÁXIMA POTENCIA: LA LISTA CON SCROLL TÁCTIL SIN ERRORES
+# SECCIÓN 7: LISTA CON SCROLL TÁCTIL
 # =====================================================================
 st.markdown("---")
-st.markdown("### 🍽️ Alimentos consumidos hoy")
+st.markdown("### 🍽️ Consumidos hoy")
 
 if not df_hoy.empty:
-    # Abrimos la caja con scroll táctil nativo permitido por el celular
     html_acumulado = '<div class="mobile-scroll-box">'
     
     for index, row in df_hoy.iterrows():
@@ -307,14 +302,12 @@ if not df_hoy.empty:
         c_gras = row['grasas'] * f
         c_edul = sum([row[ed] for ed in EDULCORANTES_COLS]) * f
         
-        # Enlace HTML nativo que inyecta la instrucción de borrado en la URL
         link_borrar = f"?delete_id={row['id_consumo']}"
         
-        # Construimos la fila unificada (Información + Botón de la basura en la misma línea real)
         html_acumulado += f"""
         <div class="food-row-container">
             <div class="food-info-side">
-                <div class="food-row-title">🔹 {row['nombre']} <span style="color:#ffcc00;">({row['gramos']:.0f}g)</span></div>
+                <div class="food-row-title">🔹 {row['nombre']} <span style="color:#ffcc00; font-weight:normal;">({row['gramos']:.0f}g)</span></div>
                 <div class="food-row-caption">🔥 <b>{c_cal:.1f}</b> | 🥩 <b>{c_prot:.1f}g</b> | 🌾 <b>{c_carb:.1f}g</b> | 🥑 <b>{c_gras:.1f}g</b> | 🧪 <b>{c_edul:.1f}mg</b></div>
             </div>
             <div>
@@ -324,8 +317,6 @@ if not df_hoy.empty:
         """
         
     html_acumulado += '</div>'
-    
-    # Renderizamos la lista completa de golpe
     st.markdown(html_acumulado, unsafe_allow_html=True)
 else:
     st.info("Aún no has registrado ningún alimento hoy.")
