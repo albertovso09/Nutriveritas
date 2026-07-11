@@ -267,28 +267,33 @@ with col_izq:
         with col_cant:
             gramos_consumir = st.number_input("Gramos/ml:", min_value=0.0, value=100.0, step=10.0)
 
-        if producto_seleccionado:
+        # Usamos bloques condicionales simples y nativos para no estresar la memoria
+        if producto_seleccionado is not None and gramos_consumir > 0:
             prod_data = df_productos[df_productos['nombre'] == producto_seleccionado].iloc[0]
-            factor = gramos_consumir / 100.0
+            factor = float(gramos_consumir) / 100.0
             
-            suma_edul_preview = sum([prod_data[ed] for ed in EDULCORANTES_COLS]) * factor
+            # Cálculo nativo sin usar funciones pesadas de pandas
+            suma_edul_preview = 0.0
+            for ed in EDULCORANTES_COLS:
+                suma_edul_preview += float(prod_data[ed] or 0.0)
+            suma_edul_preview *= factor
             
             st.markdown(f"**🔍 Aporte por {gramos_consumir} g/ml:**")
             
             with st.container():
                 mc1, mc2, mc3, mc4, mc5 = st.columns(5)
-                mc1.metric("🔥 Calorías", f"{(prod_data['calorias'] * factor):.1f}")
-                mc2.metric("🥩 Proteína", f"{(prod_data['proteinas'] * factor):.1f} g")
-                mc3.metric("🌾 Carbs", f"{(prod_data['carbohidratos'] * factor):.1f} g")
-                mc4.metric("🥑 Grasas", f"{(prod_data['grasas'] * factor):.1f} g")
-                mc5.metric("⚖️ Factor", f"x{factor:.1f}")
+                mc1.metric("🔥 Calorías", f"{(float(prod_data['calorias'] or 0) * factor):.1f}")
+                mc2.metric("🥩 Proteína", f"{(float(prod_data['proteinas'] or 0) * factor):.1f} g")
+                mc3.metric("🌾 Carbs", f"{(float(prod_data['carbohidratos'] or 0) * factor):.1f} g")
+                mc4.metric("🥑 Grasas", f"{(float(prod_data['grasas'] or 0) * factor):.1f} g")
+                mc5.metric("⚖️ Factor", f"x{factor:.2f}")
                 
                 st.markdown("<br>", unsafe_allow_html=True)
                 mc6, mc7, mc8, mc9, mc10 = st.columns(5)
-                mc6.metric("🥦 Fibra", f"{(prod_data['fibra'] * factor):.1f} g")
-                mc7.metric("🍇 Antiox.", f"{(prod_data['antioxidantes'] * factor):.1f} u")
-                mc8.metric("🧂 Sodio", f"{(prod_data['sodio'] * factor):.1f} mg")
-                mc9.metric("🍬 Azúcar Añd.", f"{(prod_data['azucar_anadida'] * factor):.1f} g")
+                mc6.metric("🥦 Fibra", f"{(float(prod_data['fibra'] or 0) * factor):.1f} g")
+                mc7.metric("🍇 Antiox.", f"{(float(prod_data['antioxidantes'] or 0) * factor):.1f} u")
+                mc8.metric("🧂 Sodio", f"{(float(prod_data['sodio'] or 0) * factor):.1f} mg")
+                mc9.metric("🍬 Azúcar Añd.", f"{(float(prod_data['azucar_anadida'] or 0) * factor):.1f} g")
                 mc10.metric("🧪 Edulcor. (Total)", f"{suma_edul_preview:.1f} mg")
             
             st.markdown("<br>", unsafe_allow_html=True)
