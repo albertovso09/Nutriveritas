@@ -355,7 +355,7 @@ if not df_hoy.empty:
             tot_edul += row[ed] * factor
 
 cursor = conn.cursor()
-cursor.execute("SELECT SUM(mililitros) FROM consumo_agua WHERE fecha = ?", (date.today(),))
+cursor.execute("SELECT SUM(mililitros) FROM consumo_agua WHERE fecha = ?", (str(date.today()),))
 res_agua = cursor.fetchone()[0]
 tot_agua = res_agua if res_agua else 0.0
 
