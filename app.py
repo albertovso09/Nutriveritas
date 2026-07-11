@@ -352,17 +352,21 @@ if registros_hoy:
     html_code += """
     </div>
     
-    <!-- El cerebro en JavaScript -->
+<!-- El cerebro en JavaScript -->
     <script>
-      let startX = 0;
-      let currentX = 0;
+      const swipeItems = document.querySelectorAll('.swipe-item');
       
-      const items = document.querySelectorAll('.content');
-      
-      items.forEach(item => {
+      swipeItems.forEach(container => {
+          const item = container.querySelector('.content');
+          const deleteBtn = container.querySelector('.delete-btn');
+          
+          let startX = 0;
+          let currentX = 0;
+          
           // Detectar cuando tocas la pantalla
           item.addEventListener('touchstart', (e) => {
               startX = e.touches[0].clientX;
+              currentX = startX; // Resetear posición actual
               item.style.transition = 'none'; // Quita la animación mientras arrastras
           }, {passive: true});
           
@@ -371,8 +375,8 @@ if registros_hoy:
               currentX = e.touches[0].clientX;
               let diff = startX - currentX;
               
-              // Solo permite deslizar hacia la izquierda y no más allá de 90px
-              if (diff > 0 && diff < 90) {
+              // Permitir deslizar hacia la izquierda sin el límite estricto de 90px
+              if (diff > 0) {
                   item.style.transform = `translateX(-${diff}px)`;
               }
           }, {passive: true});
@@ -382,10 +386,21 @@ if registros_hoy:
               item.style.transition = 'transform 0.2s ease-out'; // Vuelve la animación
               let diff = startX - currentX;
               
-              // Si deslizaste suficiente, se queda abierto; si no, se cierra
-              if (diff > 45) {
+              // 1. Si deslizaste MÁS de 120px (swipe completo), ELIMINAR
+              if (diff > 120) {
+                  item.style.transform = `translateX(-100vw)`; // Desliza fuera de la pantalla visualmente
+                  
+                  // Esperar la animación y simular el clic en tu enlace de Streamlit
+                  setTimeout(() => {
+                      deleteBtn.click(); 
+                  }, 200);
+              } 
+              // 2. Si deslizaste lo suficiente solo para revelar el botón
+              else if (diff > 45) {
                   item.style.transform = `translateX(-80px)`; 
-              } else {
+              } 
+              // 3. Si fue un toque o deslizamiento muy corto, regresar a posición original
+              else {
                   item.style.transform = `translateX(0px)`;
               }
           });
