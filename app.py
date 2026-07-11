@@ -50,7 +50,7 @@ def iniciar_db():
             )
         ''')
         
-        # Tabla de Historial Diario de Comida
+        # Tabla de Historial Diario de Comida (fecha como TEXT para evitar problemas)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS consumo_diario (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,7 +61,7 @@ def iniciar_db():
             )
         ''')
         
-        # Tabla: Historial Diario de Agua
+        # Tabla: Historial Diario de Agua (fecha como TEXT para evitar problemas)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS consumo_agua (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,6 +73,9 @@ def iniciar_db():
         conn.commit()
 
 iniciar_db()
+
+# Variable global de fecha de hoy formateada estrictamente como String de texto ISO
+fecha_hoy_texto = date.today().isoformat()
 
 # =====================================================================
 # SECCIÓN 2: BARRA LATERAL (CONFIGURACIÓN DE METAS)
@@ -137,7 +140,7 @@ with st.expander("🔐 Administrar Bóveda (Agregar o Borrar Alimentos)", expand
 
             nuevo_ingredientes = st.text_area("Ingredientes (Opcional)")
             
-            btn_guardar = st.form_submit_button("💾 Guardar en la Bóveda", type="primary", width="stretch")
+            btn_guardar = st.form_submit_button("💾 Guardar en la Bóveda", type="primary")
             
             if btn_guardar:
                 if nuevo_nombre.strip() == "":
@@ -159,6 +162,7 @@ with st.expander("🔐 Administrar Bóveda (Agregar o Borrar Alimentos)", expand
                             ))
                             conn_add.commit()
                         st.success(f"¡Éxito! '{nuevo_nombre}' guardado.")
+                        st.rerun()
                     except sqlite3.IntegrityError:
                         st.error("Ese alimento ya existe. Usa un nombre distinto o bórralo primero.")
                         
@@ -177,7 +181,7 @@ with st.expander("🔐 Administrar Bóveda (Agregar o Borrar Alimentos)", expand
                 df_carga = df_carga.fillna(0.0)
                 
                 st.write("Vista previa de los primeros 5 alimentos:")
-                st.dataframe(df_carga.head(), width="stretch")
+                st.dataframe(df_carga.head())
 
                 if st.button("🚀 Cargar todo a la Bóveda", type="primary"):
                     with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_masiva:
@@ -210,6 +214,7 @@ with st.expander("🔐 Administrar Bóveda (Agregar o Borrar Alimentos)", expand
                                 
                         conn_masiva.commit()
                     st.success(f"¡Carga completa! Se agregaron {agregados} alimentos nuevos a tu bóveda.")
+                    st.rerun()
                     
             except Exception as e:
                 st.error(f"Hubo un error al leer el archivo: {e}")
@@ -221,7 +226,7 @@ with st.expander("🔐 Administrar Bóveda (Agregar o Borrar Alimentos)", expand
             
             if not df_boveda.empty:
                 st.markdown("### 📋 Alimentos registrados")
-                st.dataframe(df_boveda, hide_index=True, width="stretch")
+                st.dataframe(df_boveda, hide_index=True)
                 
                 st.markdown("---")
                 st.markdown("### 🗑️ Eliminar un alimento")
@@ -248,8 +253,6 @@ with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_main:
 
 col_izq, col_der = st.columns([2, 1])
 
-fecha_hoy = date.today().isoformat()
-
 with col_izq:
     st.markdown("### 🍽️ Agregar Comida")
     if not df_productos.empty:
@@ -272,7 +275,7 @@ with col_izq:
             
             st.markdown(f"**🔍 Aporte por {gramos_consumir} g/ml:**")
             
-            with st.container(border=True):
+            with st.container():
                 mc1, mc2, mc3, mc4, mc5 = st.columns(5)
                 mc1.metric("🔥 Calorías", f"{(prod_data['calorias'] * factor):.1f}")
                 mc2.metric("🥩 Proteína", f"{(prod_data['proteinas'] * factor):.1f} g")
@@ -289,13 +292,13 @@ with col_izq:
                 mc10.metric("🧪 Edulcor. (Total)", f"{suma_edul_preview:.1f} mg")
             
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("➕ Agregar a mi día", type="primary", width="stretch"):
+            if st.button("➕ Agregar a mi día", type="primary"):
                 id_prod = int(prod_data['id'])
                 gramos_float = float(gramos_consumir)
                 with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_insert_food:
                     cursor = conn_insert_food.cursor()
                     cursor.execute("INSERT INTO consumo_diario (fecha, id_producto, gramos) VALUES (?, ?, ?)",
-                                   (fecha_hoy, id_prod, gramos_float))
+                                   (fecha_hoy_texto, id_prod, gramos_float))
                     conn_insert_food.commit()
                 st.success(f"¡Añadido: {gramos_float}g de {producto_seleccionado}!")
                 st.rerun()
@@ -312,7 +315,7 @@ with col_der:
         if st.button("➕ Tomar", type="primary"):
             with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_insert_water:
                 cursor = conn_insert_water.cursor()
-                cursor.execute("INSERT INTO consumo_agua (fecha, mililitros) VALUES (?, ?)", (fecha_hoy, agua_input))
+                cursor.execute("INSERT INTO consumo_agua (fecha, mililitros) VALUES (?, ?)", (fecha_hoy_texto, agua_input))
                 conn_insert_water.commit()
             st.success(f"¡{agua_input}ml de agua registrados!")
             st.rerun()
@@ -332,10 +335,10 @@ query_hoy = f'''
 '''
 
 with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_progress:
-    df_hoy = pd.read_sql_query(query_hoy, conn_progress, params=(fecha_hoy,))
+    df_hoy = pd.read_sql_query(query_hoy, conn_progress, params=(fecha_hoy_texto,))
     
     cursor = conn_progress.cursor()
-    cursor.execute("SELECT SUM(mililitros) FROM consumo_agua WHERE fecha = ?", (fecha_hoy,))
+    cursor.execute("SELECT SUM(mililitros) FROM consumo_agua WHERE fecha = ?", (fecha_hoy_texto,))
     res_agua = cursor.fetchone()[0]
     tot_agua = res_agua if res_agua else 0.0
 
@@ -422,7 +425,7 @@ st.markdown("### 🍽️ Alimentos consumidos hoy")
 
 if not df_hoy.empty:
     for index, row in df_hoy.iterrows():
-        with st.container(border=True):
+        with st.container():
             factor = row['gramos'] / 100.0
             c_cal = row['calorias'] * factor
             c_prot = row['proteinas'] * factor
@@ -438,7 +441,7 @@ if not df_hoy.empty:
                 
             with col_btn:
                 st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
-                if st.button("🗑️", key=f"del_{row['id_consumo']}", help="Eliminar registro", width="text" if hasattr(st, 'button') and False else "stretch"):
+                if st.button("🗑️", key=f"del_{row['id_consumo']}", help="Eliminar registro"):
                     with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_delete_entry:
                         cursor_del = conn_delete_entry.cursor()
                         cursor_del.execute("DELETE FROM consumo_diario WHERE id = ?", (row['id_consumo'],))
