@@ -352,22 +352,21 @@ if registros_hoy:
     html_code += """
     </div>
     
-    <!-- El cerebro en JavaScript -->
+<!-- El cerebro en JavaScript -->
     <script>
       const swipeItems = document.querySelectorAll('.swipe-item');
       
       swipeItems.forEach(container => {
           const item = container.querySelector('.content');
           const deleteBtn = container.querySelector('.delete-btn');
+          const idConsumo = deleteBtn.getAttribute('data-id');
           
           let startX = 0;
           let currentX = 0;
 
-          // 🔥 FUNCION MAESTRA DE BORRADO 🔥
+          // 🔥 FUNCION MAESTRA: EL CABALLO DE TROYA 🔥
           const ejecutarBorrado = () => {
-              const idConsumo = deleteBtn.getAttribute('data-id');
-              
-              // 1. Animación visual de colapso
+              // 1. Animación para que desaparezca suavemente
               item.style.transform = `translateX(-100vw)`; 
               container.style.transition = 'all 0.3s ease-out';
               container.style.transform = 'translateX(-100vw)'; 
@@ -375,20 +374,34 @@ if registros_hoy:
               container.style.marginBottom = '0px'; 
               container.style.opacity = '0'; 
               
-              // 2. Hack para escapar del iframe y obtener la URL real de tu app
-              let base = document.referrer; 
-              if (!base) {
-                  // Fallback directo a tu app si el referrer está bloqueado
-                  base = "https://nutriveritas.streamlit.app/";
-              }
-              base = base.split('?')[0]; // Limpiamos basurita de la URL
-              
-              // 3. ¡Forzamos a la ventana PREDOMINANTE a recargar con el parámetro!
-              const targetUrl = base + "?delete_id=" + idConsumo;
-              window.top.location.href = targetUrl;
+              // 2. Esperamos una fracción de segundo para ver la animación
+              setTimeout(() => {
+                  let base = document.referrer; 
+                  if (!base || base === "") {
+                      base = "https://nutriveritas.streamlit.app/";
+                  }
+                  base = base.split('?')[0]; // Limpiamos la URL
+                  
+                  // CREAMOS UN FORMULARIO INVISIBLE QUE APUNTA AL PAPÁ (_top)
+                  const form = document.createElement('form');
+                  form.method = 'GET';
+                  form.action = base;
+                  form.target = '_top'; // ¡Esta es la llave que rompe el iframe!
+                  
+                  // Metemos el ID que queremos borrar en el formulario
+                  const input = document.createElement('input');
+                  input.type = 'hidden';
+                  input.name = 'delete_id';
+                  input.value = idConsumo;
+                  
+                  // Lo inyectamos y lo disparamos
+                  form.appendChild(input);
+                  document.body.appendChild(form);
+                  form.submit(); 
+              }, 150); 
           };
           
-          // Si el usuario decide deslizar a medias y luego hacer "clic" en el basurero
+          // Detectar clic directo en el basurero
           deleteBtn.addEventListener('click', ejecutarBorrado);
           
           // Detectar cuando tocas la pantalla
@@ -413,16 +426,11 @@ if registros_hoy:
               item.style.transition = 'transform 0.2s ease-out'; 
               let diff = startX - currentX;
               
-              // 1. Si deslizaste MÁS de 120px (swipe completo)
               if (diff > 120) {
                   ejecutarBorrado();
-              } 
-              // 2. Si deslizaste lo suficiente solo para revelar el botón
-              else if (diff > 45) {
+              } else if (diff > 45) {
                   item.style.transform = `translateX(-80px)`; 
-              } 
-              // 3. Si fue un toque o deslizamiento muy corto, regresa a su lugar
-              else {
+              } else {
                   item.style.transform = `translateX(0px)`;
               }
           });
