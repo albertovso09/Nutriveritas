@@ -423,35 +423,82 @@ for i, edulcorante in enumerate(EDULCORANTES_COLS):
     current_col += 1
 
 # =====================================================================
-# SECCIÓN 6: LISTA MÓVIL DE ALIMENTOS CONSUMIDOS HOY
+# SECCIÓN 6: LISTA MÓVIL DE ALIMENTOS CONSUMIDOS HOY (CON SCROLL Y DISEÑO PREMIUM)
 # =====================================================================
-st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("---")
 st.markdown("### 🍽️ Alimentos consumidos hoy")
 
 if not df_hoy.empty:
+    # --- TRUCO MAESTRO CSS: Contenedor con Scroll e Interfaz Tarjetas ---
+    st.markdown(
+        """
+        <style>
+        /* Creamos una caja de altura fija para que aparezca la barra deslizable */
+        .scroll-container {
+            max-height: 380px; 
+            overflow-y: auto;
+            padding-right: 10px;
+            border-radius: 8px;
+        }
+        /* Diseñamos las tarjetas de los alimentos estilo Premium */
+        .food-card {
+            background-color: #1e222b;
+            border-left: 5px solid #ffcc00; /* Borde dorado premium */
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .food-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+        .food-caption {
+            font-size: 13px;
+            color: #a3a8b4;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Abrimos el contenedor deslizable usando HTML nativo
+    st.markdown('<div class="scroll-container">', unsafe_allow_html=True)
+    
     for index, row in df_hoy.iterrows():
-        with st.container():
-            factor = row['gramos'] / 100.0
-            c_cal = row['calorias'] * factor
-            c_prot = row['proteinas'] * factor
-            c_carb = row['carbohidratos'] * factor
-            c_gras = row['grasas'] * factor
-            c_edul = sum([row[ed] for ed in EDULCORANTES_COLS]) * factor
+        factor = row['gramos'] / 100.0
+        c_cal = row['calorias'] * factor
+        c_prot = row['proteinas'] * factor
+        c_carb = row['carbohidratos'] * factor
+        c_gras = row['grasas'] * factor
+        c_edul = sum([row[ed] for ed in EDULCORANTES_COLS]) * factor
+        
+        # Estructuramos la tarjeta de forma visualmente atractiva
+        col_info, col_btn = st.columns([5, 1])
+        
+        with col_info:
+            card_html = f"""
+            <div class="food-card">
+                <div class="food-title">🔹 {row['nombre']} <span style='color: #ffcc00; font-size:13px;'>({row['gramos']} g/ml)</span></div>
+                <div class="food-caption">🔥 <b>{c_cal:.1f}</b> kcal | 🥩 <b>{c_prot:.1f}g</b> Prot | 🌾 <b>{c_carb:.1f}g</b> Carbs | 🥑 <b>{c_gras:.1f}g</b> Grasas | 🧪 Edul: <b>{c_edul:.1f}mg</b></div>
+            </div>
+            """
+            st.markdown(card_html, unsafe_allow_html=True)
             
-            col_info, col_btn = st.columns([4, 1])
-            
-            with col_info:
-                st.markdown(f"**{row['nombre']}** - {row['gramos']}g/ml")
-                st.caption(f"🔥 {c_cal:.1f} kcal | 🥩 {c_prot:.1f}g | 🌾 {c_carb:.1f}g | 🥑 {c_gras:.1f}g | 🧪 Edul: {c_edul:.1f}mg")
+        with col_btn:
+            # Ponemos un espaciador sutil para centrar verticalmente el botón de borrado de Streamlit
+            st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+            if st.button("🗑️", key=f"del_{row['id_consumo']}", help="Eliminar registro"):
+                with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_delete_entry:
+                    cursor_del = conn_delete_entry.cursor()
+                    cursor_del.execute("DELETE FROM consumo_diario WHERE id = ?", (row['id_consumo'],))
+                    conn_delete_entry.commit()
+                st.toast("Alimento eliminado del registro.")
+                st.rerun()
                 
-            with col_btn:
-                st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
-                if st.button("🗑️", key=f"del_{row['id_consumo']}", help="Eliminar registro"):
-                    with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_delete_entry:
-                        cursor_del = conn_delete_entry.cursor()
-                        cursor_del.execute("DELETE FROM consumo_diario WHERE id = ?", (row['id_consumo'],))
-                        conn_delete_entry.commit()
-                    st.toast("Alimento eliminado del registro.")
-                    st.rerun()
+    # Cerramos el contenedor deslizable
+    st.markdown('</div>', unsafe_allow_html=True)
 else:
     st.info("Aún no has registrado ningún alimento hoy.")
