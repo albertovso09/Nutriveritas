@@ -4,44 +4,62 @@ import sqlite3
 from datetime import date
 
 # =====================================================================
-# CONFIGURACIÓN INICIAL Y DISEÑO MÓVIL PREMIUM
+# CONFIGURACIÓN INICIAL Y TIPOGRAFÍA ELEGANTE (CSS TOTAL)
 # =====================================================================
 st.set_page_config(page_title="Nutriveritas", layout="wide")
 
-# Inyección CSS Limpio y seguro
+# Importamos una fuente premium desde Google Fonts e inyectamos estilos refinados
 st.markdown("""
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,600;1,400&display=swap');
+
+    /* Aplicar tipografía elegante a toda la aplicación */
+    html, body, [class*="st-"] {
+        font-family: 'Inter', sans-serif !important;
+    }
+    
+    /* Encabezados con un toque sofisticado serif */
+    h1, h2, h3, .stTitle {
+        font-family: 'Playfair Display', serif !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.02em;
+    }
+
+    /* Ocultar elementos innecesarios nativos */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     .stAppDeployButton {display: none;}
     header {visibility: hidden;}
     [data-testid="stSidebar"] {display: none;}
     
+    /* Espaciados limpios en teléfonos */
     .block-container {
-        padding-top: 1rem !important;
+        padding-top: 1.5rem !important;
         padding-bottom: 1rem !important;
         padding-left: 0.8rem !important;
         padding-right: 0.8rem !important;
     }
 
+    /* CONTENEDOR MAESTRO DE SCROLL */
     .mobile-scroll-box {
         max-height: 340px; 
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         padding-right: 5px;
-        margin-top: 10px;
+        margin-top: 12px;
     }
 
+    /* DISEÑO DE FILA UNIFICADA (Estilo Tarjeta Minimalista) */
     .food-row-container {
         display: flex;
         align-items: center;
         justify-content: space-between;
         background-color: #1e293b; 
-        border-left: 4px solid #ffcc00; 
+        border-left: 3px solid #ffcc00; 
         border-radius: 8px;
-        padding: 10px 12px;
+        padding: 12px 14px;
         margin-bottom: 8px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
     }
     
     .food-info-side {
@@ -50,25 +68,27 @@ st.markdown("""
     }
 
     .food-row-title {
-        font-size: 15px;
-        font-weight: 600;
+        font-size: 14px;
+        font-weight: 500;
         color: #f8fafc;
         margin-bottom: 4px;
     }
 
     .food-row-caption {
-        font-size: 12px;
+        font-size: 11px;
         color: #94a3b8;
-        line-height: 1.4;
+        font-weight: 300;
+        letter-spacing: 0.03em;
     }
 
+    /* Botón Minimalista de Borrado */
     .btn-delete-native {
-        background-color: rgba(239, 68, 68, 0.1);
+        background-color: rgba(239, 68, 68, 0.08);
         color: #ef4444;
-        border: 1px solid rgba(239, 68, 68, 0.3);
+        border: 1px solid rgba(239, 68, 68, 0.2);
         border-radius: 6px;
-        padding: 8px 12px;
-        font-size: 14px;
+        padding: 6px 10px;
+        font-size: 13px;
         cursor: pointer;
         text-decoration: none;
         display: inline-block;
@@ -84,7 +104,7 @@ EDULCORANTES_COLS = [
 ]
 
 # =====================================================================
-# SECCIÓN 1: BASE DE DATOS CONTRA ERRORES
+# SECCIÓN 1: BASE DE DATOS
 # =====================================================================
 def iniciar_db():
     with sqlite3.connect(DB_FILE, check_same_thread=False) as conn:
@@ -115,7 +135,7 @@ iniciar_db()
 fecha_hoy_texto = date.today().isoformat()
 
 # =====================================================================
-# SECCIÓN 2: PROCESAR BORRADOS DE FORMA SEGURA
+# SECCIÓN 2: CONTROLADOR DE BORRADO SEGURO (¡SIN INVALIDATE_PAGES!)
 # =====================================================================
 if "delete_id" in st.query_params:
     id_a_borrar = st.query_params["delete_id"]
@@ -124,13 +144,12 @@ if "delete_id" in st.query_params:
         cursor.execute("DELETE FROM consumo_diario WHERE id = ?", (id_a_borrar,))
         conn_del.commit()
     st.query_params.clear()
-    st.invalidate_pages() # Limpieza de caché nativa para evitar congelamientos
     st.rerun()
 
 # =====================================================================
-# SECCIÓN 3: METAS DIARIAS (CON CONTROL ANTIBUGS 🛡️)
+# SECCIÓN 3: METAS DIARIAS
 # =====================================================================
-with st.expander("⚙️ Ajustar Metas Diarias (Calorías, Macros y Límites)", expanded=False):
+with st.expander("⚙️ Ajustar Metas Diarias", expanded=False):
     meta_cal = st.number_input("Calorías (kcal)", value=1850, step=50, min_value=0)
     meta_prot = st.number_input("Proteína (g)", value=150, step=5, min_value=0)
     meta_carb = st.number_input("Carbohidratos (g)", value=425, step=5, min_value=0)
@@ -139,7 +158,6 @@ with st.expander("⚙️ Ajustar Metas Diarias (Calorías, Macros y Límites)", 
     meta_fibra = st.number_input("Fibra (g)", value=30, step=5, min_value=0)
     meta_antiox = st.number_input("Antioxidantes (u)", value=100, step=10, min_value=0)
     
-    # Usamos barras deslizadoras para azúcar y edulcorantes, que son 100% estables en celulares
     limite_azucar = st.slider("Azúcar Añadida Max (g)", min_value=0.0, max_value=150.0, value=25.0, step=2.5)
     limite_edulcorantes = st.slider("Edulcorantes Max (mg)", min_value=0.0, max_value=1000.0, value=150.0, step=10.0)
 
@@ -170,16 +188,16 @@ with st.expander("🔐 Administrar Bóveda", expanded=False):
                             VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
                         ''', (nuevo_nombre.strip(), float(nuevo_cal), float(nuevo_prot), float(nuevo_carb), float(nuevo_gras), float(nuevo_azucar)))
                         conn_add.commit()
-                    st.success("¡Guardado exitosamente!")
+                    st.success("¡Guardado!")
                     st.rerun()
                 except sqlite3.IntegrityError:
-                    st.error("Ese alimento ya existe en la bóveda.")
+                    st.error("Ese alimento ya existe.")
 
     with tab_gestionar:
         with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_gest:
             df_boveda = pd.read_sql_query("SELECT id, nombre FROM productos", conn_gest)
             if not df_boveda.empty:
-                alimento_borrar = st.selectbox("Alimento a eliminar de la bóveda:", df_boveda['nombre'].tolist(), index=None)
+                alimento_borrar = st.selectbox("Alimento a eliminar:", df_boveda['nombre'].tolist(), index=None)
                 if st.button("🚨 Eliminar Definitivamente") and alimento_borrar:
                     cursor = conn_gest.cursor()
                     cursor.execute("DELETE FROM productos WHERE nombre = ?", (alimento_borrar,))
@@ -262,7 +280,6 @@ if not df_hoy.empty:
         tot_azucar += float(row['azucar_anadida'] or 0) * f
         tot_edul += sum([float(row[ed] or 0) for ed in EDULCORANTES_COLS]) * f
 
-# Evitamos divisiones por cero de manera ultra-segura
 st.markdown(f"**🔥 Calorías:** {tot_cal:.1f} / {meta_cal} kcal")
 st.progress(min(tot_cal / max(meta_cal, 1), 1.0))
 
