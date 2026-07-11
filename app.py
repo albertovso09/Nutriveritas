@@ -100,10 +100,10 @@ iniciar_db()
 # Procesar borrado cuando el iframe mande la señal a la página padre
 if "delete_id" in st.query_params:
     id_a_borrar = st.query_params["delete_id"]
+    # Aseguramos que sea un número entero para la base de datos
     ejecutar_accion("DELETE FROM consumo_diario WHERE id = ?", (int(id_a_borrar),))
     del st.query_params["delete_id"]
     st.rerun()
-
 # =====================================================================
 # SECCIÓN 2: METAS DIARIAS
 # =====================================================================
@@ -366,8 +366,8 @@ if registros_hoy:
           // Detectar cuando tocas la pantalla
           item.addEventListener('touchstart', (e) => {
               startX = e.touches[0].clientX;
-              currentX = startX; // Resetear posición actual
-              item.style.transition = 'none'; // Quita la animación del texto mientras arrastras
+              currentX = startX; 
+              item.style.transition = 'none'; 
           }, {passive: true});
           
           // Detectar el arrastre
@@ -375,7 +375,6 @@ if registros_hoy:
               currentX = e.touches[0].clientX;
               let diff = startX - currentX;
               
-              // Permitir deslizar hacia la izquierda libremente
               if (diff > 0) {
                   item.style.transform = `translateX(-${diff}px)`;
               }
@@ -383,30 +382,30 @@ if registros_hoy:
           
           // Detectar cuando sueltas el dedo
           item.addEventListener('touchend', (e) => {
-              item.style.transition = 'transform 0.2s ease-out'; // Vuelve la animación al texto
+              item.style.transition = 'transform 0.2s ease-out'; 
               let diff = startX - currentX;
               
               // 1. Si deslizaste MÁS de 120px (swipe completo de borrado)
               if (diff > 120) {
-                  // Manda el texto lejos
-                  item.style.transform = `translateX(-100vw)`; 
+                  // Rescatamos la URL de borrado antes de esconder la caja
+                  const urlBorrado = deleteBtn.getAttribute('href');
                   
-                  // Anima TODA la caja para que se encoja y desaparezca
+                  // Animación para desaparecer
+                  item.style.transform = `translateX(-100vw)`; 
                   container.style.transition = 'all 0.3s ease-out';
                   container.style.transform = 'translateX(-100vw)'; 
                   container.style.height = '0px'; 
                   container.style.marginBottom = '0px'; 
                   container.style.opacity = '0'; 
                   
-                  // ¡SIN RETRASO! Ejecutamos el clic inmediatamente dentro de la 
-                  // acción del dedo del usuario para que el navegador no lo bloquee.
-                  deleteBtn.click(); 
+                  // Ejecutamos la navegación directa hacia Python (reemplaza el .click())
+                  window.open(urlBorrado, "_parent");
               } 
               // 2. Si deslizaste lo suficiente solo para revelar el botón
               else if (diff > 45) {
                   item.style.transform = `translateX(-80px)`; 
               } 
-              // 3. Si fue un toque o deslizamiento muy corto, regresar a posición original
+              // 3. Si fue un toque o deslizamiento muy corto, regresa
               else {
                   item.style.transform = `translateX(0px)`;
               }
