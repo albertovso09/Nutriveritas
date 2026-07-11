@@ -98,20 +98,18 @@ EDULCORANTES_COLS = [
 fecha_hoy_texto = date.today().isoformat()
 
 # =====================================================================
-# SECCIÓN 1: MOTOR DE BASE DE DATOS BLINDADO (ANTI SEGFAULT)
+# SECCIÓN 1: MOTOR DE BASE DE DATOS BLINDADO
 # =====================================================================
 def ejecutar_accion(query, params=()):
-    """Ejecuta INSERT/UPDATE/DELETE cerrando la conexión obligatoriamente."""
     conn = sqlite3.connect(DB_FILE, timeout=10)
     try:
         cursor = conn.cursor()
         cursor.execute(query, params)
         conn.commit()
     finally:
-        conn.close() # ¡ESTO EVITA EL SEGMENTATION FAULT!
+        conn.close()
 
 def obtener_datos(query, params=()):
-    """Ejecuta SELECTs devolviendo diccionarios sin usar Pandas."""
     conn = sqlite3.connect(DB_FILE, timeout=10)
     conn.row_factory = sqlite3.Row
     try:
@@ -256,7 +254,7 @@ with col_w2:
         st.rerun()
 
 # =====================================================================
-# SECCIÓN 5: PROGRESO Y BARRAS DE EDULCORANTES RESTAURADAS
+# SECCIÓN 5: PROGRESO Y BARRAS DE EDULCORANTES INTELIGENTES
 # =====================================================================
 st.markdown("---")
 st.markdown("### 📊 Tu Progreso de Hoy")
@@ -299,14 +297,21 @@ st.progress(min(tot_agua / max(meta_agua, 1), 1.0))
 st.markdown(f"**🍬 Azúcar Añadida:** {tot_azucar:.1f}g / {limite_azucar}g")
 st.progress(min(tot_azucar / max(limite_azucar, 1.0), 1.0))
 
-# --- LAS BARRAS DE EDULCORANTES ---
+# --- LAS BARRAS DE EDULCORANTES INTELIGENTES ---
 st.markdown("---")
 with st.expander("🧪 Lista de Edulcorantes Consumidos", expanded=True):
+    edulcorantes_consumidos = False
     for ed in EDULCORANTES_COLS:
         val_edulcorante = totales_edulcorantes[ed]
-        nombre_legible = ed.replace("_", " ").title()
-        st.markdown(f"**{nombre_legible}:** {val_edulcorante:.1f}mg / {limite_edulcorantes}mg")
-        st.progress(min(val_edulcorante / max(limite_edulcorantes, 1.0), 1.0))
+        # SOLO MUESTRA LA BARRA SI ES MAYOR A CERO
+        if val_edulcorante > 0:
+            edulcorantes_consumidos = True
+            nombre_legible = ed.replace("_", " ").title()
+            st.markdown(f"**{nombre_legible}:** {val_edulcorante:.1f}mg / {limite_edulcorantes}mg")
+            st.progress(min(val_edulcorante / max(limite_edulcorantes, 1.0), 1.0))
+    
+    if not edulcorantes_consumidos:
+        st.info("No has registrado consumo de edulcorantes hoy. ¡Excelente! 🙌")
 
 # =====================================================================
 # SECCIÓN 6: LISTA CON SCROLL TÁCTIL
