@@ -4,25 +4,25 @@ import sqlite3
 from datetime import date
 
 # =====================================================================
-# CONFIGURACIÓN INICIAL Y TIPOGRAFÍA ELEGANTE (CSS TOTAL)
+# CONFIGURACIÓN INICIAL Y FUENTE MONTSERRAT PREMIUM
 # =====================================================================
 st.set_page_config(page_title="Nutriveritas", layout="wide")
 
-# Importamos una fuente premium desde Google Fonts e inyectamos estilos refinados
+# Importamos Montserrat y aplicamos un control de tamaño estricto para evitar amontonamientos
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,600;1,400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
 
-    /* Aplicar tipografía elegante a toda la aplicación */
-    html, body, [class*="st-"] {
-        font-family: 'Inter', sans-serif !important;
+    /* Aplicar Montserrat absolutamente a toda la app */
+    html, body, [class*="st-"], div, span, p, h1, h2, h3 {
+        font-family: 'Montserrat', sans-serif !important;
     }
     
-    /* Encabezados con un toque sofisticado serif */
-    h1, h2, h3, .stTitle {
-        font-family: 'Playfair Display', serif !important;
+    /* Corregir títulos amontonados en los expanders */
+    .stHeader, [data-testid="stExpander"] p {
+        font-size: 14px !important;
         font-weight: 600 !important;
-        letter-spacing: -0.02em;
+        line-height: 1.2 !important;
     }
 
     /* Ocultar elementos innecesarios nativos */
@@ -34,7 +34,7 @@ st.markdown("""
     
     /* Espaciados limpios en teléfonos */
     .block-container {
-        padding-top: 1.5rem !important;
+        padding-top: 1.2rem !important;
         padding-bottom: 1rem !important;
         padding-left: 0.8rem !important;
         padding-right: 0.8rem !important;
@@ -68,8 +68,8 @@ st.markdown("""
     }
 
     .food-row-title {
-        font-size: 14px;
-        font-weight: 500;
+        font-size: 13px;
+        font-weight: 600;
         color: #f8fafc;
         margin-bottom: 4px;
     }
@@ -77,8 +77,8 @@ st.markdown("""
     .food-row-caption {
         font-size: 11px;
         color: #94a3b8;
-        font-weight: 300;
-        letter-spacing: 0.03em;
+        font-weight: 400;
+        letter-spacing: 0.02em;
     }
 
     /* Botón Minimalista de Borrado */
@@ -135,7 +135,7 @@ iniciar_db()
 fecha_hoy_texto = date.today().isoformat()
 
 # =====================================================================
-# SECCIÓN 2: CONTROLADOR DE BORRADO SEGURO (¡SIN INVALIDATE_PAGES!)
+# SECCIÓN 2: CONTROLADOR DE BORRADO SEGURO
 # =====================================================================
 if "delete_id" in st.query_params:
     id_a_borrar = st.query_params["delete_id"]
