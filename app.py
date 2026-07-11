@@ -35,57 +35,11 @@ st.markdown("""
         padding-left: 0.8rem !important;
         padding-right: 0.8rem !important;
     }
-
-    .mobile-scroll-box {
-        max-height: 340px; 
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        padding-right: 5px;
-        margin-top: 12px;
-    }
-
-    .food-row-container {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background-color: #1e293b; 
-        border-left: 3px solid #ffcc00; 
-        border-radius: 8px;
-        padding: 12px 14px;
-        margin-bottom: 8px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-    }
     
-    .food-info-side {
-        flex-grow: 1;
-        padding-right: 10px;
-    }
-
-    .food-row-title {
-        font-size: 13px;
-        font-weight: 600;
-        color: #f8fafc;
-        margin-bottom: 4px;
-    }
-
-    .food-row-caption {
-        font-size: 11px;
+    /* Pequeño ajuste para que los subtítulos nativos se vean más juntos */
+    [data-testid="stCaptionContainer"] {
+        margin-top: -10px;
         color: #94a3b8;
-        font-weight: 400;
-        letter-spacing: 0.02em;
-    }
-
-    .btn-delete-native {
-        background-color: rgba(239, 68, 68, 0.08);
-        color: #ef4444;
-        border: 1px solid rgba(239, 68, 68, 0.2);
-        border-radius: 6px;
-        padding: 6px 10px;
-        font-size: 13px;
-        cursor: pointer;
-        text-decoration: none;
-        display: inline-block;
-        text-align: center;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -143,12 +97,9 @@ def iniciar_db():
 
 iniciar_db()
 
-# Procesar borrado instantáneo y seguro
-if "delete_id" in st.query_params:
-    id_a_borrar = st.query_params["delete_id"]
-    ejecutar_accion("DELETE FROM consumo_diario WHERE id = ?", (id_a_borrar,))
-    st.query_params.clear()
-    st.rerun()
+# Función para borrar sin recargar la página entera
+def borrar_consumo(id_consumo):
+    ejecutar_accion("DELETE FROM consumo_diario WHERE id = ?", (id_consumo,))
 
 # =====================================================================
 # SECCIÓN 2: METAS DIARIAS
@@ -303,7 +254,6 @@ with st.expander("🧪 Lista de Edulcorantes Consumidos", expanded=True):
     edulcorantes_consumidos = False
     for ed in EDULCORANTES_COLS:
         val_edulcorante = totales_edulcorantes[ed]
-        # SOLO MUESTRA LA BARRA SI ES MAYOR A CERO
         if val_edulcorante > 0:
             edulcorantes_consumidos = True
             nombre_legible = ed.replace("_", " ").title()
@@ -314,34 +264,33 @@ with st.expander("🧪 Lista de Edulcorantes Consumidos", expanded=True):
         st.info("No has registrado consumo de edulcorantes hoy. ¡Excelente! 🙌")
 
 # =====================================================================
-# SECCIÓN 6: LISTA CON SCROLL TÁCTIL (CORREGIDO PARA EVITAR CÓDIGO RAW)
+# SECCIÓN 6: LISTA DESLIZABLE NATIVA (SIN APAGONES)
 # =====================================================================
 st.markdown("---")
 st.markdown("### 🍽️ Consumidos hoy")
 
 if registros_hoy:
-    html_acumulado = '<div class="mobile-scroll-box">'
-    
-    for row in registros_hoy:
-        f = float(row['gramos']) / 100.0
-        c_cal = float(row['calorias'] or 0) * f
-        c_prot = float(row['proteinas'] or 0) * f
-        c_carb = float(row['carbohidratos'] or 0) * f
-        c_gras = float(row['grasas'] or 0) * f
-        c_edul = sum([float(row[ed] or 0) for ed in EDULCORANTES_COLS]) * f
-        
-        link_borrar = f"?delete_id={row['id_consumo']}"
-        
-        # Eliminamos la sangría a la izquierda para que Streamlit no lo procese como código
-        html_acumulado += f"""<div class="food-row-container">
-<div class="food-info-side">
-<div class="food-row-title">🔹 {row['nombre']} <span style="color:#ffcc00; font-weight:normal;">({row['gramos']:.0f}g)</span></div>
-<div class="food-row-caption">🔥 <b>{c_cal:.1f}</b> | 🥩 <b>{c_prot:.1f}g</b> | 🌾 <b>{c_carb:.1f}g</b> | 🥑 <b>{c_gras:.1f}g</b> | 🧪 <b>{c_edul:.1f}mg</b></div>
-</div>
-<div><a class="btn-delete-native" href="{link_borrar}" target="_self">🗑️</a></div>
-</div>"""
-        
-    html_acumulado += '</div>'
-    st.markdown(html_acumulado, unsafe_allow_html=True)
+    # Contenedor con altura fija y scroll nativo de Streamlit
+    with st.container(height=350, border=True):
+        for row in registros_hoy:
+            f = float(row['gramos']) / 100.0
+            c_cal = float(row['calorias'] or 0) * f
+            c_prot = float(row['proteinas'] or 0) * f
+            c_carb = float(row['carbohidratos'] or 0) * f
+            c_gras = float(row['grasas'] or 0) * f
+            c_edul = sum([float(row[ed] or 0) for ed in EDULCORANTES_COLS]) * f
+            
+            # Divide la fila: 5 partes para info, 1 para el botón de borrar
+            col_info, col_btn = st.columns([5, 1])
+            
+            with col_info:
+                st.markdown(f"**🔹 {row['nombre']}** ({row['gramos']:.0f}g)")
+                st.caption(f"🔥 {c_cal:.1f} | 🥩 {c_prot:.1f}g | 🌾 {c_carb:.1f}g | 🥑 {c_gras:.1f}g | 🧪 {c_edul:.1f}mg")
+            
+            with col_btn:
+                # Botón nativo que ejecuta la función de borrado sin recargar la web entera
+                st.button("🗑️", key=f"del_{row['id_consumo']}", on_click=borrar_consumo, args=(row['id_consumo'],))
+            
+            st.divider() # Línea estética entre alimentos
 else:
     st.info("Aún no has registrado ningún alimento hoy.")
