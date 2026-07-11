@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 import sqlite3
 from datetime import date
 
@@ -12,7 +11,6 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
 
-    /* Aplicamos Montserrat SOLO a los textos legibles, evitando romper iconos de Streamlit */
     html, body, p, h1, h2, h3, h4, h5, h6, label, input, button, div.stMarkdown {
         font-family: 'Montserrat', sans-serif !important;
     }
@@ -25,14 +23,12 @@ st.markdown("""
         line-height: 1.4 !important;
     }
 
-    /* Ocultar elementos innecesarios nativos */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     .stAppDeployButton {display: none;}
     header {visibility: hidden;}
     [data-testid="stSidebar"] {display: none;}
     
-    /* Espaciados limpios en teléfonos */
     .block-container {
         padding-top: 1.2rem !important;
         padding-bottom: 1rem !important;
@@ -40,7 +36,6 @@ st.markdown("""
         padding-right: 0.8rem !important;
     }
 
-    /* Contenedores móviles */
     .mobile-scroll-box {
         max-height: 340px; 
         overflow-y: auto;
@@ -103,19 +98,31 @@ EDULCORANTES_COLS = [
 fecha_hoy_texto = date.today().isoformat()
 
 # =====================================================================
-# SECCIÓN 1: BASE DE DATOS Y BORRADO SEGURO
+# SECCIÓN 1: MOTOR DE BASE DE DATOS BLINDADO (ANTI SEGFAULT)
 # =====================================================================
-def ejecutar_query(query, params=(), is_select=False):
-    """Función unificada para evitar choques de memoria y bloquear la DB correctamente"""
-    with sqlite3.connect(DB_FILE, check_same_thread=False) as conn:
+def ejecutar_accion(query, params=()):
+    """Ejecuta INSERT/UPDATE/DELETE cerrando la conexión obligatoriamente."""
+    conn = sqlite3.connect(DB_FILE, timeout=10)
+    try:
         cursor = conn.cursor()
         cursor.execute(query, params)
-        if is_select:
-            return cursor.fetchall()
         conn.commit()
+    finally:
+        conn.close() # ¡ESTO EVITA EL SEGMENTATION FAULT!
+
+def obtener_datos(query, params=()):
+    """Ejecuta SELECTs devolviendo diccionarios sin usar Pandas."""
+    conn = sqlite3.connect(DB_FILE, timeout=10)
+    conn.row_factory = sqlite3.Row
+    try:
+        cursor = conn.cursor()
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+    finally:
+        conn.close()
 
 def iniciar_db():
-    ejecutar_query('''
+    ejecutar_accion('''
         CREATE TABLE IF NOT EXISTS productos (
             id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT UNIQUE, calorias REAL, proteinas REAL, 
             carbohidratos REAL, grasas REAL, sodio REAL, fibra REAL, antioxidantes REAL, azucar_anadida REAL,
@@ -124,13 +131,13 @@ def iniciar_db():
             ingredientes TEXT DEFAULT ''
         )
     ''')
-    ejecutar_query('''
+    ejecutar_accion('''
         CREATE TABLE IF NOT EXISTS consumo_diario (
             id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, id_producto INTEGER, gramos REAL,
             FOREIGN KEY(id_producto) REFERENCES productos(id)
         )
     ''')
-    ejecutar_query('''
+    ejecutar_accion('''
         CREATE TABLE IF NOT EXISTS consumo_agua (
             id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, mililitros REAL
         )
@@ -138,10 +145,10 @@ def iniciar_db():
 
 iniciar_db()
 
-# Procesar borrado ANTES de renderizar nada para evitar Segmentation Fault
+# Procesar borrado instantáneo y seguro
 if "delete_id" in st.query_params:
     id_a_borrar = st.query_params["delete_id"]
-    ejecutar_query("DELETE FROM consumo_diario WHERE id = ?", (id_a_borrar,))
+    ejecutar_accion("DELETE FROM consumo_diario WHERE id = ?", (id_a_borrar,))
     st.query_params.clear()
     st.rerun()
 
@@ -161,7 +168,7 @@ with st.expander("⚙️ Ajustar Metas Diarias", expanded=False):
     limite_edulcorantes = st.slider("Límite por Edulcorante (mg)", min_value=0.0, max_value=1000.0, value=150.0, step=10.0)
 
 # =====================================================================
-# SECCIÓN 3: BÓVEDA
+# SECCIÓN 3: BÓVEDA CON EDULCORANTES HABILITADOS
 # =====================================================================
 with st.expander("🔐 Administrar Bóveda", expanded=False):
     tab_manual, tab_gestionar = st.tabs(["✍️ Carga Manual", "🗑️ Ver / Borrar"])
@@ -175,44 +182,54 @@ with st.expander("🔐 Administrar Bóveda", expanded=False):
             nuevo_carb = col_cb.number_input("Carbs (g)", min_value=0.0, value=0.0)
             nuevo_gras = col_g.number_input("Grasas (g)", min_value=0.0, value=0.0)
             nuevo_azucar = st.number_input("Azúcar Añadida (g)", min_value=0.0, value=0.0)
+            
+            st.markdown("**(Opcional) Edulcorantes en miligramos (mg):**")
+            cols_ed = st.columns(3)
+            ed_valores = {}
+            for i, ed in enumerate(EDULCORANTES_COLS):
+                ed_valores[ed] = cols_ed[i % 3].number_input(ed.replace("_", " ").title(), min_value=0.0, value=0.0, step=10.0)
+
             btn_guardar = st.form_submit_button("💾 Guardar Alimento")
             
             if btn_guardar and nuevo_nombre.strip():
                 try:
-                    ejecutar_query('''
+                    ejecutar_accion(f'''
                         INSERT INTO productos (nombre, calorias, proteinas, carbohidratos, grasas, sodio, fibra, antioxidantes, azucar_anadida,
-                        acesulfame_k, alitame, aspartame, ciclamato, esteviol, neohesperidina, neotame, sacarina, sucralosa, taumatina, advantame)
-                        VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-                    ''', (nuevo_nombre.strip(), float(nuevo_cal), float(nuevo_prot), float(nuevo_carb), float(nuevo_gras), float(nuevo_azucar)))
+                        {", ".join(EDULCORANTES_COLS)})
+                        VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, {", ".join(["?"] * len(EDULCORANTES_COLS))})
+                    ''', (
+                        nuevo_nombre.strip(), float(nuevo_cal), float(nuevo_prot), float(nuevo_carb), float(nuevo_gras), float(nuevo_azucar),
+                        *[float(ed_valores[ed]) for ed in EDULCORANTES_COLS]
+                    ))
                     st.success("¡Guardado!")
                     st.rerun()
                 except sqlite3.IntegrityError:
                     st.error("Ese alimento ya existe.")
 
     with tab_gestionar:
-        with sqlite3.connect(DB_FILE) as conn_gest:
-            df_boveda = pd.read_sql_query("SELECT id, nombre FROM productos", conn_gest)
-        if not df_boveda.empty:
-            alimento_borrar = st.selectbox("Alimento a eliminar:", df_boveda['nombre'].tolist(), index=None)
+        boveda_items = obtener_datos("SELECT id, nombre FROM productos")
+        if boveda_items:
+            nombres_boveda = [item["nombre"] for item in boveda_items]
+            alimento_borrar = st.selectbox("Alimento a eliminar:", nombres_boveda, index=None)
             if st.button("🚨 Eliminar Definitivamente") and alimento_borrar:
-                ejecutar_query("DELETE FROM productos WHERE nombre = ?", (alimento_borrar,))
+                ejecutar_accion("DELETE FROM productos WHERE nombre = ?", (alimento_borrar,))
                 st.rerun()
 
 # =====================================================================
-# SECCIÓN 4: AGREGAR REGISTROS (COMIDA Y AGUA)
+# SECCIÓN 4: AGREGAR REGISTROS
 # =====================================================================
 st.title("Nutriveritas")
 
-with sqlite3.connect(DB_FILE) as conn_main:
-    df_productos = pd.read_sql_query("SELECT * FROM productos", conn_main)
+productos = obtener_datos("SELECT * FROM productos")
 
 st.markdown("### 🍽️ Agregar Registro")
-if not df_productos.empty:
-    producto_seleccionado = st.selectbox("Busca un alimento:", df_productos['nombre'].tolist(), index=None, placeholder="Ej: Huevo Blanco...")
+if productos:
+    nombres_prod = [p["nombre"] for p in productos]
+    producto_seleccionado = st.selectbox("Busca un alimento:", nombres_prod, index=None, placeholder="Ej: Huevo Blanco...")
     gramos_consumir = st.number_input("Gramos / ml consumidos:", min_value=0.1, value=100.0, step=10.0)
     
     if producto_seleccionado:
-        prod_data = df_productos[df_productos['nombre'] == producto_seleccionado].iloc[0]
+        prod_data = next(p for p in productos if p["nombre"] == producto_seleccionado)
         factor = float(gramos_consumir) / 100.0
         
         c1, c2, c3, c4 = st.columns(4)
@@ -222,7 +239,7 @@ if not df_productos.empty:
         c4.metric("🥑 Grasas", f"{(float(prod_data['grasas'] or 0)*factor):.1f}")
         
         if st.button("➕ Agregar a mi Día", type="primary", use_container_width=True):
-            ejecutar_query("INSERT INTO consumo_diario (fecha, id_producto, gramos) VALUES (?, ?, ?)",
+            ejecutar_accion("INSERT INTO consumo_diario (fecha, id_producto, gramos) VALUES (?, ?, ?)",
                            (fecha_hoy_texto, int(prod_data['id']), float(gramos_consumir)))
             st.rerun()
 else:
@@ -235,43 +252,37 @@ with col_w1:
     agua_input = st.number_input("Mililitros:", min_value=0, value=250, step=250, label_visibility="collapsed")
 with col_w2:
     if st.button("➕ Tomar", type="secondary", use_container_width=True):
-        ejecutar_query("INSERT INTO consumo_agua (fecha, mililitros) VALUES (?, ?)", (fecha_hoy_texto, float(agua_input)))
+        ejecutar_accion("INSERT INTO consumo_agua (fecha, mililitros) VALUES (?, ?)", (fecha_hoy_texto, float(agua_input)))
         st.rerun()
 
 # =====================================================================
-# SECCIÓN 5: PROGRESO DE HOY Y EDULCORANTES RESTAURADOS
+# SECCIÓN 5: PROGRESO Y BARRAS DE EDULCORANTES RESTAURADAS
 # =====================================================================
 st.markdown("---")
 st.markdown("### 📊 Tu Progreso de Hoy")
 
-query_hoy = f'''
+query_hoy = '''
     SELECT c.id as id_consumo, c.gramos, p.nombre, p.calorias, p.proteinas, p.carbohidratos, p.grasas, p.azucar_anadida,
     p.acesulfame_k, p.alitame, p.aspartame, p.ciclamato, p.esteviol, p.neohesperidina, p.neotame, p.sacarina, p.sucralosa, p.taumatina, p.advantame
     FROM consumo_diario c JOIN productos p ON c.id_producto = p.id WHERE c.fecha = ?
 '''
+registros_hoy = obtener_datos(query_hoy, (fecha_hoy_texto,))
 
-with sqlite3.connect(DB_FILE) as conn_prog:
-    df_hoy = pd.read_sql_query(query_hoy, conn_prog, params=(fecha_hoy_texto,))
-
-res_agua = ejecutar_query("SELECT SUM(mililitros) FROM consumo_agua WHERE fecha = ?", (fecha_hoy_texto,), is_select=True)
-tot_agua = float(res_agua[0][0]) if res_agua and res_agua[0][0] else 0.0
+res_agua = obtener_datos("SELECT SUM(mililitros) as total FROM consumo_agua WHERE fecha = ?", (fecha_hoy_texto,))
+tot_agua = float(res_agua[0]['total']) if res_agua and res_agua[0]['total'] else 0.0
 
 tot_cal = tot_prot = tot_carb = tot_gras = tot_azucar = 0.0
-# Diccionario para almacenar el total individual de cada edulcorante
 totales_edulcorantes = {ed: 0.0 for ed in EDULCORANTES_COLS}
 
-if not df_hoy.empty:
-    for _, row in df_hoy.iterrows():
-        f = float(row['gramos']) / 100.0
-        tot_cal += float(row['calorias'] or 0) * f
-        tot_prot += float(row['proteinas'] or 0) * f
-        tot_carb += float(row['carbohidratos'] or 0) * f
-        tot_gras += float(row['grasas'] or 0) * f
-        tot_azucar += float(row['azucar_anadida'] or 0) * f
-        
-        # Sumar a cada edulcorante específico
-        for ed in EDULCORANTES_COLS:
-            totales_edulcorantes[ed] += float(row[ed] or 0) * f
+for row in registros_hoy:
+    f = float(row['gramos']) / 100.0
+    tot_cal += float(row['calorias'] or 0) * f
+    tot_prot += float(row['proteinas'] or 0) * f
+    tot_carb += float(row['carbohidratos'] or 0) * f
+    tot_gras += float(row['grasas'] or 0) * f
+    tot_azucar += float(row['azucar_anadida'] or 0) * f
+    for ed in EDULCORANTES_COLS:
+        totales_edulcorantes[ed] += float(row[ed] or 0) * f
 
 st.markdown(f"**🔥 Calorías:** {tot_cal:.1f} / {meta_cal} kcal")
 st.progress(min(tot_cal / max(meta_cal, 1), 1.0))
@@ -288,20 +299,14 @@ st.progress(min(tot_agua / max(meta_agua, 1), 1.0))
 st.markdown(f"**🍬 Azúcar Añadida:** {tot_azucar:.1f}g / {limite_azucar}g")
 st.progress(min(tot_azucar / max(limite_azucar, 1.0), 1.0))
 
-# Restauramos el bloque visual detallado de los edulcorantes
+# --- LAS BARRAS DE EDULCORANTES ---
 st.markdown("---")
-st.markdown("### 🧪 Detalle de Edulcorantes")
-edulcorantes_consumidos = False
-
-for ed, total_mg in totales_edulcorantes.items():
-    if total_mg > 0:
-        edulcorantes_consumidos = True
+with st.expander("🧪 Lista de Edulcorantes Consumidos", expanded=True):
+    for ed in EDULCORANTES_COLS:
+        val_edulcorante = totales_edulcorantes[ed]
         nombre_legible = ed.replace("_", " ").title()
-        st.markdown(f"**{nombre_legible}:** {total_mg:.1f}mg / {limite_edulcorantes}mg")
-        st.progress(min(total_mg / max(limite_edulcorantes, 1.0), 1.0))
-
-if not edulcorantes_consumidos:
-    st.info("No has consumido edulcorantes hoy. ¡Excelente! 🙌")
+        st.markdown(f"**{nombre_legible}:** {val_edulcorante:.1f}mg / {limite_edulcorantes}mg")
+        st.progress(min(val_edulcorante / max(limite_edulcorantes, 1.0), 1.0))
 
 # =====================================================================
 # SECCIÓN 6: LISTA CON SCROLL TÁCTIL
@@ -309,10 +314,10 @@ if not edulcorantes_consumidos:
 st.markdown("---")
 st.markdown("### 🍽️ Consumidos hoy")
 
-if not df_hoy.empty:
+if registros_hoy:
     html_acumulado = '<div class="mobile-scroll-box">'
     
-    for index, row in df_hoy.iterrows():
+    for row in registros_hoy:
         f = float(row['gramos']) / 100.0
         c_cal = float(row['calorias'] or 0) * f
         c_prot = float(row['proteinas'] or 0) * f
