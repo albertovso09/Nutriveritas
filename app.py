@@ -100,8 +100,8 @@ iniciar_db()
 # Procesar borrado cuando el iframe mande la señal a la página padre
 if "delete_id" in st.query_params:
     id_a_borrar = st.query_params["delete_id"]
-    ejecutar_accion("DELETE FROM consumo_diario WHERE id = ?", (id_a_borrar,))
-    st.query_params.clear()
+    ejecutar_accion("DELETE FROM consumo_diario WHERE id = ?", (int(id_a_borrar),))
+    del st.query_params["delete_id"]
     st.rerun()
 
 # =====================================================================
@@ -391,17 +391,16 @@ if registros_hoy:
                   // Manda el texto lejos
                   item.style.transform = `translateX(-100vw)`; 
                   
-                  // ¡LA MAGIA! Anima TODA la caja para que se encoja y desaparezca
+                  // Anima TODA la caja para que se encoja y desaparezca
                   container.style.transition = 'all 0.3s ease-out';
-                  container.style.transform = 'translateX(-100vw)'; // Mueve toda la caja
-                  container.style.height = '0px'; // La colapsa
-                  container.style.marginBottom = '0px'; // Quita el margen
-                  container.style.opacity = '0'; // La vuelve invisible
+                  container.style.transform = 'translateX(-100vw)'; 
+                  container.style.height = '0px'; 
+                  container.style.marginBottom = '0px'; 
+                  container.style.opacity = '0'; 
                   
-                  // Esperar a que termine la animación (300ms) y simular el clic en el botón de borrar
-                  setTimeout(() => {
-                      deleteBtn.click(); 
-                  }, 300);
+                  // ¡SIN RETRASO! Ejecutamos el clic inmediatamente dentro de la 
+                  // acción del dedo del usuario para que el navegador no lo bloquee.
+                  deleteBtn.click(); 
               } 
               // 2. Si deslizaste lo suficiente solo para revelar el botón
               else if (diff > 45) {
