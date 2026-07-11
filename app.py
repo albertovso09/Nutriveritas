@@ -97,13 +97,19 @@ def iniciar_db():
 
 iniciar_db()
 
+# =====================================================================
 # Procesar borrado cuando el iframe mande la señal a la página padre
+# =====================================================================
 if "delete_id" in st.query_params:
-    id_a_borrar = st.query_params["delete_id"]
-    # Aseguramos que sea un número entero para la base de datos
-    ejecutar_accion("DELETE FROM consumo_diario WHERE id = ?", (int(id_a_borrar),))
-    del st.query_params["delete_id"]
-    st.rerun()
+    try:
+        id_a_borrar = int(st.query_params["delete_id"])
+        ejecutar_accion("DELETE FROM consumo_diario WHERE id = ?", (id_a_borrar,))
+    except Exception as e:
+        pass # Ignorar si alguien altera la URL manualmente con texto
+    finally:
+        # Eliminamos el parámetro para que no se atore en un bucle, 
+        # pero dejamos que el código siga fluyendo hacia abajo para pintar las gráficas actualizadas.
+        del st.query_params["delete_id"]
 # =====================================================================
 # SECCIÓN 2: METAS DIARIAS
 # =====================================================================
@@ -353,89 +359,92 @@ if registros_hoy:
     </div>
     
 <!-- El cerebro en JavaScript -->
-    <script>
-      const swipeItems = document.querySelectorAll('.swipe-item');
+<script>
+  const swipeItems = document.querySelectorAll('.swipe-item');
+  
+  swipeItems.forEach(container => {
+      const item = container.querySelector('.content');
+      const deleteBtn = container.querySelector('.delete-btn');
+      const idConsumo = deleteBtn.getAttribute('data-id');
       
-      swipeItems.forEach(container => {
-          const item = container.querySelector('.content');
-          const deleteBtn = container.querySelector('.delete-btn');
-          const idConsumo = deleteBtn.getAttribute('data-id');
-          
-          let startX = 0;
-          let currentX = 0;
+      let startX = 0;
+      let currentX = 0;
 
-          // 🔥 FUNCION MAESTRA: EL CABALLO DE TROYA 🔥
-          const ejecutarBorrado = () => {
-              // 1. Animación para que desaparezca suavemente
-              item.style.transform = `translateX(-100vw)`; 
-              container.style.transition = 'all 0.3s ease-out';
-              container.style.transform = 'translateX(-100vw)'; 
-              container.style.height = '0px'; 
-              container.style.marginBottom = '0px'; 
-              container.style.opacity = '0'; 
-              
-              // 2. Esperamos una fracción de segundo para ver la animación
-              setTimeout(() => {
-                  let base = document.referrer; 
-                  if (!base || base === "") {
-                      base = "https://nutriveritas.streamlit.app/";
-                  }
-                  base = base.split('?')[0]; // Limpiamos la URL
-                  
-                  // CREAMOS UN FORMULARIO INVISIBLE QUE APUNTA AL PAPÁ (_top)
-                  const form = document.createElement('form');
-                  form.method = 'GET';
-                  form.action = base;
-                  form.target = '_top'; // ¡Esta es la llave que rompe el iframe!
-                  
-                  // Metemos el ID que queremos borrar en el formulario
-                  const input = document.createElement('input');
-                  input.type = 'hidden';
-                  input.name = 'delete_id';
-                  input.value = idConsumo;
-                  
-                  // Lo inyectamos y lo disparamos
-                  form.appendChild(input);
-                  document.body.appendChild(form);
-                  form.submit(); 
-              }, 150); 
-          };
+      // 🔥 FUNCION MAESTRA: EL CABALLO DE TROYA 🔥
+      const ejecutarBorrado = () => {
+          // 1. Animación visual de desaparición
+          item.style.transform = `translateX(-100vw)`; 
+          container.style.transition = 'all 0.3s ease-out';
+          container.style.transform = 'translateX(-100vw)'; 
+          container.style.height = '0px'; 
+          container.style.marginBottom = '0px'; 
+          container.style.opacity = '0'; 
           
-          // Detectar clic directo en el basurero
-          deleteBtn.addEventListener('click', ejecutarBorrado);
-          
-          // Detectar cuando tocas la pantalla
-          item.addEventListener('touchstart', (e) => {
-              startX = e.touches[0].clientX;
-              currentX = startX; 
-              item.style.transition = 'none'; 
-          }, {passive: true});
-          
-          // Detectar el arrastre
-          item.addEventListener('touchmove', (e) => {
-              currentX = e.touches[0].clientX;
-              let diff = startX - currentX;
-              
-              if (diff > 0) {
-                  item.style.transform = `translateX(-${diff}px)`;
+          // 2. Esperamos a que termine la animación antes de forzar la recarga
+          setTimeout(() => {
+              let currentUrl;
+              try {
+                  // Intento 1: Obtener la URL exacta del navegador principal
+                  currentUrl = window.parent.location.href;
+              } catch (e) {
+                  // Intento 2: Fallback si hay restricciones de seguridad
+                  currentUrl = document.referrer;
               }
-          }, {passive: true});
-          
-          // Detectar cuando sueltas el dedo
-          item.addEventListener('touchend', (e) => {
-              item.style.transition = 'transform 0.2s ease-out'; 
-              let diff = startX - currentX;
-              
-              if (diff > 120) {
-                  ejecutarBorrado();
-              } else if (diff > 45) {
-                  item.style.transform = `translateX(-80px)`; 
-              } else {
-                  item.style.transform = `translateX(0px)`;
+
+              if (!currentUrl || currentUrl === "") {
+                  currentUrl = "https://nutriveritas.streamlit.app/";
               }
-          });
+              
+              currentUrl = currentUrl.split('?')[0]; // Limpiamos basurita de la URL
+              
+              // Usamos _parent en lugar de _top para evitar bloqueos del sandbox
+              const form = document.createElement('form');
+              form.method = 'GET';
+              form.action = currentUrl;
+              form.target = '_parent'; 
+              
+              const input = document.createElement('input');
+              input.type = 'hidden';
+              input.name = 'delete_id';
+              input.value = idConsumo;
+              
+              form.appendChild(input);
+              document.body.appendChild(form);
+              form.submit(); 
+          }, 300); // 300ms garantiza que el CSS termine fluido
+      };
+      
+      // Detectar clic directo en el basurero
+      deleteBtn.addEventListener('click', ejecutarBorrado);
+      
+      // ... (El resto de tus Listeners touchstart, touchmove y touchend se quedan igual) ...
+      item.addEventListener('touchstart', (e) => {
+          startX = e.touches[0].clientX;
+          currentX = startX; 
+          item.style.transition = 'none'; 
+      }, {passive: true});
+      
+      item.addEventListener('touchmove', (e) => {
+          currentX = e.touches[0].clientX;
+          let diff = startX - currentX;
+          if (diff > 0) {
+              item.style.transform = `translateX(-${diff}px)`;
+          }
+      }, {passive: true});
+      
+      item.addEventListener('touchend', (e) => {
+          item.style.transition = 'transform 0.2s ease-out'; 
+          let diff = startX - currentX;
+          if (diff > 120) {
+              ejecutarBorrado();
+          } else if (diff > 45) {
+              item.style.transform = `translateX(-80px)`; 
+          } else {
+              item.style.transform = `translateX(0px)`;
+          }
       });
-    </script>
+  });
+</script>
     </body>
     </html>
     """
