@@ -269,7 +269,7 @@ with st.expander("🧪 Lista de Edulcorantes Consumidos", expanded=True):
 # SECCIÓN 6: EL EXPERIMENTO FRANKENSTEIN (SWIPE-TO-DELETE CON JAVASCRIPT)
 # =====================================================================
 st.markdown("---")
-st.markdown("### 🍽️ Consumidos hoy (Prueba Swipe)")
+st.markdown("### 🍽️ Consumidos hoy")
 
 if registros_hoy:
     # Creamos un bloque de HTML, CSS y Javascript puro
