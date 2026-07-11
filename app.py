@@ -338,8 +338,8 @@ if registros_hoy:
         
         html_code += f"""
         <div class="swipe-item">
-            <!-- Botón oculto debajo -->
-            <a class="delete-btn" href="?delete_id={row['id_consumo']}" target="_parent">🗑️</a>
+            <!-- Quitamos la etiqueta <a> y usamos un div con data-id para control total -->
+            <div class="delete-btn" data-id="{row['id_consumo']}">🗑️</div>
             
             <!-- Tarjeta que se desliza por encima -->
             <div class="content" id="item-{row['id_consumo']}">
@@ -352,7 +352,7 @@ if registros_hoy:
     html_code += """
     </div>
     
-<!-- El cerebro en JavaScript -->
+    <!-- El cerebro en JavaScript -->
     <script>
       const swipeItems = document.querySelectorAll('.swipe-item');
       
@@ -362,6 +362,34 @@ if registros_hoy:
           
           let startX = 0;
           let currentX = 0;
+
+          // 🔥 FUNCION MAESTRA DE BORRADO 🔥
+          const ejecutarBorrado = () => {
+              const idConsumo = deleteBtn.getAttribute('data-id');
+              
+              // 1. Animación visual de colapso
+              item.style.transform = `translateX(-100vw)`; 
+              container.style.transition = 'all 0.3s ease-out';
+              container.style.transform = 'translateX(-100vw)'; 
+              container.style.height = '0px'; 
+              container.style.marginBottom = '0px'; 
+              container.style.opacity = '0'; 
+              
+              // 2. Hack para escapar del iframe y obtener la URL real de tu app
+              let base = document.referrer; 
+              if (!base) {
+                  // Fallback directo a tu app si el referrer está bloqueado
+                  base = "https://nutriveritas.streamlit.app/";
+              }
+              base = base.split('?')[0]; // Limpiamos basurita de la URL
+              
+              // 3. ¡Forzamos a la ventana PREDOMINANTE a recargar con el parámetro!
+              const targetUrl = base + "?delete_id=" + idConsumo;
+              window.top.location.href = targetUrl;
+          };
+          
+          // Si el usuario decide deslizar a medias y luego hacer "clic" en el basurero
+          deleteBtn.addEventListener('click', ejecutarBorrado);
           
           // Detectar cuando tocas la pantalla
           item.addEventListener('touchstart', (e) => {
@@ -385,27 +413,15 @@ if registros_hoy:
               item.style.transition = 'transform 0.2s ease-out'; 
               let diff = startX - currentX;
               
-              // 1. Si deslizaste MÁS de 120px (swipe completo de borrado)
+              // 1. Si deslizaste MÁS de 120px (swipe completo)
               if (diff > 120) {
-                  // Rescatamos la URL de borrado antes de esconder la caja
-                  const urlBorrado = deleteBtn.getAttribute('href');
-                  
-                  // Animación para desaparecer
-                  item.style.transform = `translateX(-100vw)`; 
-                  container.style.transition = 'all 0.3s ease-out';
-                  container.style.transform = 'translateX(-100vw)'; 
-                  container.style.height = '0px'; 
-                  container.style.marginBottom = '0px'; 
-                  container.style.opacity = '0'; 
-                  
-                  // Ejecutamos la navegación directa hacia Python (reemplaza el .click())
-                  window.open(urlBorrado, "_parent");
+                  ejecutarBorrado();
               } 
               // 2. Si deslizaste lo suficiente solo para revelar el botón
               else if (diff > 45) {
                   item.style.transform = `translateX(-80px)`; 
               } 
-              // 3. Si fue un toque o deslizamiento muy corto, regresa
+              // 3. Si fue un toque o deslizamiento muy corto, regresa a su lugar
               else {
                   item.style.transform = `translateX(0px)`;
               }
@@ -416,8 +432,7 @@ if registros_hoy:
     </html>
     """
     
-    # Inyectamos el monstruo en Streamlit estableciendo una altura fija para el iframe
+    # Inyectamos el monstruo en Streamlit
     components.html(html_code, height=350, scrolling=True)
-
 else:
     st.info("Aún no has registrado ningún alimento hoy.")
