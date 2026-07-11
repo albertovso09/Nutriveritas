@@ -1,5 +1,6 @@
 import streamlit as st
 import sqlite3
+import streamlit.components.v1 as components
 from datetime import date
 
 # =====================================================================
@@ -36,7 +37,6 @@ st.markdown("""
         padding-right: 0.8rem !important;
     }
     
-    /* Pequeño ajuste para que los subtítulos nativos se vean más juntos */
     [data-testid="stCaptionContainer"] {
         margin-top: -10px;
         color: #94a3b8;
@@ -97,9 +97,12 @@ def iniciar_db():
 
 iniciar_db()
 
-# Función para borrar sin recargar la página entera
-def borrar_consumo(id_consumo):
-    ejecutar_accion("DELETE FROM consumo_diario WHERE id = ?", (id_consumo,))
+# Procesar borrado cuando el iframe mande la señal a la página padre
+if "delete_id" in st.query_params:
+    id_a_borrar = st.query_params["delete_id"]
+    ejecutar_accion("DELETE FROM consumo_diario WHERE id = ?", (id_a_borrar,))
+    st.query_params.clear()
+    st.rerun()
 
 # =====================================================================
 # SECCIÓN 2: METAS DIARIAS
@@ -248,7 +251,6 @@ st.progress(min(tot_agua / max(meta_agua, 1), 1.0))
 st.markdown(f"**🍬 Azúcar Añadida:** {tot_azucar:.1f}g / {limite_azucar}g")
 st.progress(min(tot_azucar / max(limite_azucar, 1.0), 1.0))
 
-# --- LAS BARRAS DE EDULCORANTES INTELIGENTES ---
 st.markdown("---")
 with st.expander("🧪 Lista de Edulcorantes Consumidos", expanded=True):
     edulcorantes_consumidos = False
@@ -264,33 +266,137 @@ with st.expander("🧪 Lista de Edulcorantes Consumidos", expanded=True):
         st.info("No has registrado consumo de edulcorantes hoy. ¡Excelente! 🙌")
 
 # =====================================================================
-# SECCIÓN 6: LISTA DESLIZABLE NATIVA (SIN APAGONES)
+# SECCIÓN 6: EL EXPERIMENTO FRANKENSTEIN (SWIPE-TO-DELETE CON JAVASCRIPT)
 # =====================================================================
 st.markdown("---")
-st.markdown("### 🍽️ Consumidos hoy")
+st.markdown("### 🍽️ Consumidos hoy (Prueba Swipe)")
 
 if registros_hoy:
-    # Contenedor con altura fija y scroll nativo de Streamlit
-    with st.container(height=350, border=True):
-        for row in registros_hoy:
-            f = float(row['gramos']) / 100.0
-            c_cal = float(row['calorias'] or 0) * f
-            c_prot = float(row['proteinas'] or 0) * f
-            c_carb = float(row['carbohidratos'] or 0) * f
-            c_gras = float(row['grasas'] or 0) * f
-            c_edul = sum([float(row[ed] or 0) for ed in EDULCORANTES_COLS]) * f
+    # Creamos un bloque de HTML, CSS y Javascript puro
+    html_code = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+      body {
+        font-family: 'Montserrat', sans-serif;
+        margin: 0; padding: 0; background-color: transparent; color: #f8fafc;
+      }
+      .list-container {
+        overflow-x: hidden; /* Oculta lo que sale por los lados */
+        overflow-y: auto;
+        padding-bottom: 20px;
+      }
+      .swipe-item {
+        position: relative;
+        height: 80px;
+        margin-bottom: 10px;
+        background-color: #1e293b;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        overflow: hidden;
+      }
+      .delete-btn {
+        position: absolute;
+        right: 0; top: 0; bottom: 0;
+        width: 80px;
+        background-color: #ef4444; /* Rojo papelera */
+        color: white;
+        display: flex; align-items: center; justify-content: center;
+        text-decoration: none; font-size: 24px;
+        border-radius: 0 8px 8px 0;
+      }
+      .content {
+        position: absolute;
+        left: 0; top: 0; bottom: 0; width: 100%;
+        background-color: #1e293b;
+        z-index: 1;
+        transition: transform 0.2s ease-out; /* Animación de rebote suave */
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 0 15px; box-sizing: border-box;
+        border-left: 3px solid #ffcc00;
+        border-radius: 8px;
+      }
+      .title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+      .macros { font-size: 11px; color: #94a3b8; }
+    </style>
+    </head>
+    <body>
+    <div class="list-container">
+    """
+    
+    # Generamos los items en HTML leyendo los datos de Python
+    for row in registros_hoy:
+        f = float(row['gramos']) / 100.0
+        c_cal = float(row['calorias'] or 0) * f
+        c_prot = float(row['proteinas'] or 0) * f
+        c_carb = float(row['carbohidratos'] or 0) * f
+        c_gras = float(row['grasas'] or 0) * f
+        c_edul = sum([float(row[ed] or 0) for ed in EDULCORANTES_COLS]) * f
+        
+        html_code += f"""
+        <div class="swipe-item">
+            <!-- Botón oculto debajo -->
+            <a class="delete-btn" href="?delete_id={row['id_consumo']}" target="_parent">🗑️</a>
             
-            # Divide la fila: 5 partes para info, 1 para el botón de borrar
-            col_info, col_btn = st.columns([5, 1])
-            
-            with col_info:
-                st.markdown(f"**🔹 {row['nombre']}** ({row['gramos']:.0f}g)")
-                st.caption(f"🔥 {c_cal:.1f} | 🥩 {c_prot:.1f}g | 🌾 {c_carb:.1f}g | 🥑 {c_gras:.1f}g | 🧪 {c_edul:.1f}mg")
-            
-            with col_btn:
-                # Botón nativo que ejecuta la función de borrado sin recargar la web entera
-                st.button("🗑️", key=f"del_{row['id_consumo']}", on_click=borrar_consumo, args=(row['id_consumo'],))
-            
-            st.divider() # Línea estética entre alimentos
+            <!-- Tarjeta que se desliza por encima -->
+            <div class="content" id="item-{row['id_consumo']}">
+                <div class="title">🔹 {row['nombre']} ({row['gramos']:.0f}g)</div>
+                <div class="macros">🔥 {c_cal:.1f} | 🥩 {c_prot:.1f}g | 🌾 {c_carb:.1f}g | 🥑 {c_gras:.1f}g | 🧪 {c_edul:.1f}mg</div>
+            </div>
+        </div>
+        """
+        
+    html_code += """
+    </div>
+    
+    <!-- El cerebro en JavaScript -->
+    <script>
+      let startX = 0;
+      let currentX = 0;
+      
+      const items = document.querySelectorAll('.content');
+      
+      items.forEach(item => {
+          // Detectar cuando tocas la pantalla
+          item.addEventListener('touchstart', (e) => {
+              startX = e.touches[0].clientX;
+              item.style.transition = 'none'; // Quita la animación mientras arrastras
+          }, {passive: true});
+          
+          // Detectar el arrastre
+          item.addEventListener('touchmove', (e) => {
+              currentX = e.touches[0].clientX;
+              let diff = startX - currentX;
+              
+              // Solo permite deslizar hacia la izquierda y no más allá de 90px
+              if (diff > 0 && diff < 90) {
+                  item.style.transform = `translateX(-${diff}px)`;
+              }
+          }, {passive: true});
+          
+          // Detectar cuando sueltas el dedo
+          item.addEventListener('touchend', (e) => {
+              item.style.transition = 'transform 0.2s ease-out'; // Vuelve la animación
+              let diff = startX - currentX;
+              
+              // Si deslizaste suficiente, se queda abierto; si no, se cierra
+              if (diff > 45) {
+                  item.style.transform = `translateX(-80px)`; 
+              } else {
+                  item.style.transform = `translateX(0px)`;
+              }
+          });
+      });
+    </script>
+    </body>
+    </html>
+    """
+    
+    # Inyectamos el monstruo en Streamlit estableciendo una altura fija para el iframe
+    components.html(html_code, height=350, scrolling=True)
+
 else:
     st.info("Aún no has registrado ningún alimento hoy.")
