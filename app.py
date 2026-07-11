@@ -314,7 +314,7 @@ with st.expander("🧪 Lista de Edulcorantes Consumidos", expanded=True):
         st.info("No has registrado consumo de edulcorantes hoy. ¡Excelente! 🙌")
 
 # =====================================================================
-# SECCIÓN 6: LISTA CON SCROLL TÁCTIL
+# SECCIÓN 6: LISTA CON SCROLL TÁCTIL (CORREGIDO PARA EVITAR CÓDIGO RAW)
 # =====================================================================
 st.markdown("---")
 st.markdown("### 🍽️ Consumidos hoy")
@@ -332,17 +332,14 @@ if registros_hoy:
         
         link_borrar = f"?delete_id={row['id_consumo']}"
         
-        html_acumulado += f"""
-        <div class="food-row-container">
-            <div class="food-info-side">
-                <div class="food-row-title">🔹 {row['nombre']} <span style="color:#ffcc00; font-weight:normal;">({row['gramos']:.0f}g)</span></div>
-                <div class="food-row-caption">🔥 <b>{c_cal:.1f}</b> | 🥩 <b>{c_prot:.1f}g</b> | 🌾 <b>{c_carb:.1f}g</b> | 🥑 <b>{c_gras:.1f}g</b> | 🧪 <b>{c_edul:.1f}mg</b></div>
-            </div>
-            <div>
-                <a class="btn-delete-native" href="{link_borrar}" target="_self">🗑️</a>
-            </div>
-        </div>
-        """
+        # Eliminamos la sangría a la izquierda para que Streamlit no lo procese como código
+        html_acumulado += f"""<div class="food-row-container">
+<div class="food-info-side">
+<div class="food-row-title">🔹 {row['nombre']} <span style="color:#ffcc00; font-weight:normal;">({row['gramos']:.0f}g)</span></div>
+<div class="food-row-caption">🔥 <b>{c_cal:.1f}</b> | 🥩 <b>{c_prot:.1f}g</b> | 🌾 <b>{c_carb:.1f}g</b> | 🥑 <b>{c_gras:.1f}g</b> | 🧪 <b>{c_edul:.1f}mg</b></div>
+</div>
+<div><a class="btn-delete-native" href="{link_borrar}" target="_self">🗑️</a></div>
+</div>"""
         
     html_acumulado += '</div>'
     st.markdown(html_acumulado, unsafe_allow_html=True)
