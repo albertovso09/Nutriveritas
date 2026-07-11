@@ -8,18 +8,19 @@ from datetime import date
 # =====================================================================
 st.set_page_config(page_title="Nutriveritas", layout="wide")
 
-# Inyección CSS Maestro corregida (¡Revivimos el menú!)
+# Inyección CSS Maestro corregida para eliminar por completo la barra lateral e incrustar diseño limpio
 st.markdown("""
     <style>
-    /* Ocultar solo la basura, mantener la cabecera transparente para el menú */
+    /* Ocultar barra superior y menú lateral nativo para evitar fallos */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     .stAppDeployButton {display: none;}
-    header {background-color: transparent !important;}
+    header {visibility: hidden;}
+    [data-testid="stSidebar"] {display: none;}
     
     /* Optimizar márgenes globales en teléfonos */
     .block-container {
-        padding-top: 2rem !important;
+        padding-top: 1rem !important;
         padding-bottom: 1rem !important;
         padding-left: 0.8rem !important;
         padding-right: 0.8rem !important;
@@ -77,7 +78,6 @@ st.markdown("""
         text-decoration: none;
         display: inline-block;
         text-align: center;
-        transition: all 0.2s;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -133,10 +133,10 @@ if "delete_id" in query_params:
     st.rerun()
 
 # =====================================================================
-# SECCIÓN 3: CONFIGURACIÓN LATERAL
+# SECCIÓN 3: MENÚ DESPLEGABLE EN PANTALLA PRINCIPAL (¡EL NUEVO DISEÑO!)
 # =====================================================================
-with st.sidebar:
-    st.header("⚙️ Configuración")
+# Pasamos las metas a la pantalla principal envueltas en un menú deslizante
+with st.expander("⚙️ Ajustar Metas Diarias (Calorías, Macros y Límites)", expanded=False):
     meta_cal = st.number_input("Calorías (kcal)", value=1850, step=50)
     meta_prot = st.number_input("Proteína (g)", value=150, step=5)
     meta_carb = st.number_input("Carbohidratos (g)", value=425, step=5)
@@ -193,7 +193,6 @@ with st.expander("🔐 Administrar Bóveda", expanded=False):
 # =====================================================================
 # SECCIÓN 5: AGREGAR REGISTROS
 # =====================================================================
-# ¡Adiós a la medalla redundante!
 st.title("Nutriveritas")
 
 with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_main:
