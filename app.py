@@ -367,7 +367,7 @@ if registros_hoy:
           item.addEventListener('touchstart', (e) => {
               startX = e.touches[0].clientX;
               currentX = startX; // Resetear posición actual
-              item.style.transition = 'none'; // Quita la animación mientras arrastras
+              item.style.transition = 'none'; // Quita la animación del texto mientras arrastras
           }, {passive: true});
           
           // Detectar el arrastre
@@ -375,7 +375,7 @@ if registros_hoy:
               currentX = e.touches[0].clientX;
               let diff = startX - currentX;
               
-              // Permitir deslizar hacia la izquierda sin el límite estricto de 90px
+              // Permitir deslizar hacia la izquierda libremente
               if (diff > 0) {
                   item.style.transform = `translateX(-${diff}px)`;
               }
@@ -383,17 +383,25 @@ if registros_hoy:
           
           // Detectar cuando sueltas el dedo
           item.addEventListener('touchend', (e) => {
-              item.style.transition = 'transform 0.2s ease-out'; // Vuelve la animación
+              item.style.transition = 'transform 0.2s ease-out'; // Vuelve la animación al texto
               let diff = startX - currentX;
               
-              // 1. Si deslizaste MÁS de 120px (swipe completo), ELIMINAR
+              // 1. Si deslizaste MÁS de 120px (swipe completo de borrado)
               if (diff > 120) {
-                  item.style.transform = `translateX(-100vw)`; // Desliza fuera de la pantalla visualmente
+                  // Manda el texto lejos
+                  item.style.transform = `translateX(-100vw)`; 
                   
-                  // Esperar la animación y simular el clic en tu enlace de Streamlit
+                  // ¡LA MAGIA! Anima TODA la caja para que se encoja y desaparezca
+                  container.style.transition = 'all 0.3s ease-out';
+                  container.style.transform = 'translateX(-100vw)'; // Mueve toda la caja
+                  container.style.height = '0px'; // La colapsa
+                  container.style.marginBottom = '0px'; // Quita el margen
+                  container.style.opacity = '0'; // La vuelve invisible
+                  
+                  // Esperar a que termine la animación (300ms) y simular el clic en el botón de borrar
                   setTimeout(() => {
                       deleteBtn.click(); 
-                  }, 200);
+                  }, 300);
               } 
               // 2. Si deslizaste lo suficiente solo para revelar el botón
               else if (diff > 45) {
