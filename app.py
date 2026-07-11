@@ -19,59 +19,58 @@ EDULCORANTES_COLS = [
 # SECCIÓN 1: INICIALIZACIÓN Y ACTUALIZACIÓN DE BASE DE DATOS
 # =====================================================================
 def iniciar_db():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    
-    # Tabla de Inventario (Bóveda) - Estructura Premium 11 Edulcorantes
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS productos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT UNIQUE,
-            calorias REAL,
-            proteinas REAL,
-            carbohidratos REAL,
-            grasas REAL,
-            sodio REAL,
-            fibra REAL,
-            antioxidantes REAL,
-            azucar_anadida REAL,
-            acesulfame_k REAL,
-            alitame REAL,
-            aspartame REAL,
-            ciclamato REAL,
-            esteviol REAL,
-            neohesperidina REAL,
-            neotame REAL,
-            sacarina REAL,
-            sucralosa REAL,
-            taumatina REAL,
-            advantame REAL,
-            ingredientes TEXT DEFAULT ''
-        )
-    ''')
-    
-    # Tabla de Historial Diario de Comida
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS consumo_diario (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fecha DATE,
-            id_producto INTEGER,
-            gramos REAL,
-            FOREIGN KEY(id_producto) REFERENCES productos(id)
-        )
-    ''')
-    
-    # Tabla: Historial Diario de Agua
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS consumo_agua (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fecha DATE,
-            mililitros REAL
-        )
-    ''')
-    
-    conn.commit()
-    conn.close()
+    with sqlite3.connect(DB_FILE, check_same_thread=False) as conn:
+        cursor = conn.cursor()
+        
+        # Tabla de Inventario (Bóveda) - Estructura Premium 11 Edulcorantes
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS productos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT UNIQUE,
+                calorias REAL,
+                proteinas REAL,
+                carbohidratos REAL,
+                grasas REAL,
+                sodio REAL,
+                fibra REAL,
+                antioxidantes REAL,
+                azucar_anadida REAL,
+                acesulfame_k REAL,
+                alitame REAL,
+                aspartame REAL,
+                ciclamato REAL,
+                esteviol REAL,
+                neohesperidina REAL,
+                neotame REAL,
+                sacarina REAL,
+                sucralosa REAL,
+                taumatina REAL,
+                advantame REAL,
+                ingredientes TEXT DEFAULT ''
+            )
+        ''')
+        
+        # Tabla de Historial Diario de Comida
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS consumo_diario (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha DATE,
+                id_producto INTEGER,
+                gramos REAL,
+                FOREIGN KEY(id_producto) REFERENCES productos(id)
+            )
+        ''')
+        
+        # Tabla: Historial Diario de Agua
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS consumo_agua (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha DATE,
+                mililitros REAL
+            )
+        ''')
+        
+        conn.commit()
 
 iniciar_db()
 
@@ -145,21 +144,20 @@ with st.expander("🔐 Administrar Bóveda (Agregar o Borrar Alimentos)", expand
                     st.error("¡El alimento necesita un nombre!")
                 else:
                     try:
-                        conn_add = sqlite3.connect(DB_FILE)
-                        cursor_add = conn_add.cursor()
-                        cursor_add.execute('''
-                            INSERT INTO productos (
-                                nombre, calorias, proteinas, carbohidratos, grasas, sodio, fibra, antioxidantes, azucar_anadida, 
-                                acesulfame_k, alitame, aspartame, ciclamato, esteviol, neohesperidina, neotame, sacarina, sucralosa, taumatina, advantame, ingredientes
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ''', (
-                            nuevo_nombre.strip(), nuevo_cal, nuevo_prot, nuevo_carb, nuevo_gras, nuevo_sod, nuevo_fib, nuevo_ant, nuevo_azucar,
-                            val_edul['acesulfame_k'], val_edul['alitame'], val_edul['aspartame'], val_edul['ciclamato'], val_edul['esteviol'],
-                            val_edul['neohesperidina'], val_edul['neotame'], val_edul['sacarina'], val_edul['sucralosa'], val_edul['taumatina'],
-                            val_edul['advantame'], nuevo_ingredientes
-                        ))
-                        conn_add.commit()
-                        conn_add.close()
+                        with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_add:
+                            cursor_add = conn_add.cursor()
+                            cursor_add.execute('''
+                                INSERT INTO productos (
+                                    nombre, calorias, proteinas, carbohidratos, grasas, sodio, fibra, antioxidantes, azucar_anadida, 
+                                    acesulfame_k, alitame, aspartame, ciclamato, esteviol, neohesperidina, neotame, sacarina, sucralosa, taumatina, advantame, ingredientes
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ''', (
+                                nuevo_nombre.strip(), nuevo_cal, nuevo_prot, nuevo_carb, nuevo_gras, nuevo_sod, nuevo_fib, nuevo_ant, nuevo_azucar,
+                                val_edul['acesulfame_k'], val_edul['alitame'], val_edul['aspartame'], val_edul['ciclamato'], val_edul['esteviol'],
+                                val_edul['neohesperidina'], val_edul['neotame'], val_edul['sacarina'], val_edul['sucralosa'], val_edul['taumatina'],
+                                val_edul['advantame'], nuevo_ingredientes
+                            ))
+                            conn_add.commit()
                         st.success(f"¡Éxito! '{nuevo_nombre}' guardado.")
                     except sqlite3.IntegrityError:
                         st.error("Ese alimento ya existe. Usa un nombre distinto o bórralo primero.")
@@ -182,36 +180,35 @@ with st.expander("🔐 Administrar Bóveda (Agregar o Borrar Alimentos)", expand
                 st.dataframe(df_carga.head(), use_container_width=True)
 
                 if st.button("🚀 Cargar todo a la Bóveda", type="primary"):
-                    conn_masiva = sqlite3.connect(DB_FILE)
-                    cursor_masiva = conn_masiva.cursor()
-                    agregados = 0
-                    
-                    for index, row in df_carga.iterrows():
-                        try:
-                            n_nom = str(row.get('nombre', '')).strip()
-                            if n_nom:
-                                cursor_masiva.execute('''
-                                    INSERT INTO productos (
-                                        nombre, calorias, proteinas, carbohidratos, grasas, sodio, fibra, antioxidantes, azucar_anadida,
-                                        acesulfame_k, alitame, aspartame, ciclamato, esteviol, neohesperidina, neotame, sacarina, sucralosa, taumatina, advantame, ingredientes
-                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                ''', (
-                                    n_nom, float(row.get('calorias', 0)), float(row.get('proteinas', 0)), float(row.get('carbohidratos', 0)),
-                                    float(row.get('grasas', 0)), float(row.get('sodio', 0)), float(row.get('fibra', 0)), float(row.get('antioxidantes', 0)),
-                                    float(row.get('azucar_anadida', 0)), float(row.get('acesulfame_k', 0)), float(row.get('alitame', 0)),
-                                    float(row.get('aspartame', 0)), float(row.get('ciclamato', 0)), float(row.get('esteviol', 0)),
-                                    float(row.get('neohesperidina', 0)), float(row.get('neotame', 0)), float(row.get('sacarina', 0)),
-                                    float(row.get('sucralosa', 0)), float(row.get('taumatina', 0)), float(row.get('advantame', 0)),
-                                    str(row.get('ingredientes', ''))
-                                ))
-                                agregados += 1
-                        except sqlite3.IntegrityError:
-                            pass
-                        except Exception as e:
-                            pass
-                            
-                    conn_masiva.commit()
-                    conn_masiva.close()
+                    with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_masiva:
+                        cursor_masiva = conn_masiva.cursor()
+                        agregados = 0
+                        
+                        for index, row in df_carga.iterrows():
+                            try:
+                                n_nom = str(row.get('nombre', '')).strip()
+                                if n_nom:
+                                    cursor_masiva.execute('''
+                                        INSERT INTO productos (
+                                            nombre, calorias, proteinas, carbohidratos, grasas, sodio, fibra, antioxidantes, azucar_anadida,
+                                            acesulfame_k, alitame, aspartame, ciclamato, esteviol, neohesperidina, neotame, sacarina, sucralosa, taumatina, advantame, ingredientes
+                                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    ''', (
+                                        n_nom, float(row.get('calorias', 0)), float(row.get('proteinas', 0)), float(row.get('carbohidratos', 0)),
+                                        float(row.get('grasas', 0)), float(row.get('sodio', 0)), float(row.get('fibra', 0)), float(row.get('antioxidantes', 0)),
+                                        float(row.get('azucar_anadida', 0)), float(row.get('acesulfame_k', 0)), float(row.get('alitame', 0)),
+                                        float(row.get('aspartame', 0)), float(row.get('ciclamato', 0)), float(row.get('esteviol', 0)),
+                                        float(row.get('neohesperidina', 0)), float(row.get('neotame', 0)), float(row.get('sacarina', 0)),
+                                        float(row.get('sucralosa', 0)), float(row.get('taumatina', 0)), float(row.get('advantame', 0)),
+                                        str(row.get('ingredientes', ''))
+                                    ))
+                                    agregados += 1
+                            except sqlite3.IntegrityError:
+                                pass
+                            except Exception as e:
+                                pass
+                                
+                        conn_masiva.commit()
                     st.success(f"¡Carga completa! Se agregaron {agregados} alimentos nuevos a tu bóveda.")
                     
             except Exception as e:
@@ -219,36 +216,35 @@ with st.expander("🔐 Administrar Bóveda (Agregar o Borrar Alimentos)", expand
 
     # --- TAB 3: VER / BORRAR BÓVEDA ---
     with tab_gestionar:
-        conn_gest = sqlite3.connect(DB_FILE)
-        df_boveda = pd.read_sql_query("SELECT * FROM productos", conn_gest)
-        
-        if not df_boveda.empty:
-            st.markdown("### 📋 Alimentos registrados")
-            st.dataframe(df_boveda, hide_index=True, use_container_width=True)
+        with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_gest:
+            df_boveda = pd.read_sql_query("SELECT * FROM productos", conn_gest)
             
-            st.markdown("---")
-            st.markdown("### 🗑️ Eliminar un alimento")
-            st.warning("Selecciona el alimento que deseas borrar por completo de tu sistema.")
-            
-            alimento_borrar = st.selectbox("Buscar alimento a eliminar:", df_boveda['nombre'].tolist(), index=None, placeholder="Selecciona un alimento...")
-            
-            if st.button("🚨 Eliminar Definitivamente", type="primary") and alimento_borrar:
-                cursor_gest = conn_gest.cursor()
-                cursor_gest.execute("DELETE FROM productos WHERE nombre = ?", (alimento_borrar,))
-                conn_gest.commit()
-                st.success(f"El alimento '{alimento_borrar}' ha sido borrado.")
-                st.rerun()
-        else:
-            st.info("Tu bóveda está completamente vacía.")
-        conn_gest.close()
+            if not df_boveda.empty:
+                st.markdown("### 📋 Alimentos registrados")
+                st.dataframe(df_boveda, hide_index=True, use_container_width=True)
+                
+                st.markdown("---")
+                st.markdown("### 🗑️ Eliminar un alimento")
+                st.warning("Selecciona el alimento que deseas borrar por completo de tu sistema.")
+                
+                alimento_borrar = st.selectbox("Buscar alimento a eliminar:", df_boveda['nombre'].tolist(), index=None, placeholder="Selecciona un alimento...")
+                
+                if st.button("🚨 Eliminar Definitivamente", type="primary") and alimento_borrar:
+                    cursor_gest = conn_gest.cursor()
+                    cursor_gest.execute("DELETE FROM productos WHERE nombre = ?", (alimento_borrar,))
+                    conn_gest.commit()
+                    st.success(f"El alimento '{alimento_borrar}' ha sido borrado.")
+                    st.rerun()
+            else:
+                st.info("Tu bóveda está completamente vacía.")
 
 # =====================================================================
 # SECCIÓN 4: INTERFAZ PRINCIPAL (REGISTRO Y VISTA PREVIA)
 # =====================================================================
 st.title("🥇 Nutriveritas - Consumo Diario")
 
-conn = sqlite3.connect(DB_FILE)
-df_productos = pd.read_sql_query("SELECT * FROM productos", conn)
+with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_main:
+    df_productos = pd.read_sql_query("SELECT * FROM productos", conn_main)
 
 col_izq, col_der = st.columns([2, 1])
 
@@ -294,10 +290,11 @@ with col_izq:
             if st.button("➕ Agregar a mi día", type="primary", use_container_width=True):
                 id_prod = int(prod_data['id'])
                 gramos_float = float(gramos_consumir)
-                cursor = conn.cursor()
-                cursor.execute("INSERT INTO consumo_diario (fecha, id_producto, gramos) VALUES (?, ?, ?)",
-                               (date.today(), id_prod, gramos_float))
-                conn.commit()
+                with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_insert_food:
+                    cursor = conn_insert_food.cursor()
+                    cursor.execute("INSERT INTO consumo_diario (fecha, id_producto, gramos) VALUES (?, ?, ?)",
+                                   (str(date.today()), id_prod, gramos_float))
+                    conn_insert_food.commit()
                 st.success(f"¡Añadido: {gramos_float}g de {producto_seleccionado}!")
                 st.rerun()
     else:
@@ -311,9 +308,10 @@ with col_der:
     with col_w2:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("➕ Tomar", type="primary"):
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO consumo_agua (fecha, mililitros) VALUES (?, ?)", (date.today(), agua_input))
-            conn.commit()
+            with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_insert_water:
+                cursor = conn_insert_water.cursor()
+                cursor.execute("INSERT INTO consumo_agua (fecha, mililitros) VALUES (?, ?)", (str(date.today()), agua_input))
+                conn_insert_water.commit()
             st.success(f"¡{agua_input}ml de agua registrados!")
             st.rerun()
 
@@ -323,7 +321,6 @@ with col_der:
 st.markdown("---")
 st.markdown("### 📊 Tu Progreso de Hoy")
 
-# NOTA IMPORTANTE: Se agregó c.id AS id_consumo para poder identificar cada registro individual
 columnas_select = "c.id as id_consumo, c.gramos, p.nombre, p.calorias, p.proteinas, p.carbohidratos, p.grasas, p.fibra, p.antioxidantes, p.azucar_anadida, " + ", ".join([f"p.{ed}" for ed in EDULCORANTES_COLS])
 query_hoy = f'''
     SELECT {columnas_select}
@@ -331,7 +328,14 @@ query_hoy = f'''
     JOIN productos p ON c.id_producto = p.id
     WHERE c.fecha = ?
 '''
-df_hoy = pd.read_sql_query(query_hoy, conn, params=(date.today(),))
+
+with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_progress:
+    df_hoy = pd.read_sql_query(query_hoy, conn_progress, params=(str(date.today()),))
+    
+    cursor = conn_progress.cursor()
+    cursor.execute("SELECT SUM(mililitros) FROM consumo_agua WHERE fecha = ?", (str(date.today()),))
+    res_agua = cursor.fetchone()[0]
+    tot_agua = res_agua if res_agua else 0.0
 
 # Variables para macros y micronutrientes
 tot_cal = tot_prot = tot_carb = tot_gras = tot_fib = tot_ant = tot_azucar = tot_edul = 0.0
@@ -353,11 +357,6 @@ if not df_hoy.empty:
         for ed in EDULCORANTES_COLS:
             totales_edulcorantes[ed] += row[ed] * factor
             tot_edul += row[ed] * factor
-
-cursor = conn.cursor()
-cursor.execute("SELECT SUM(mililitros) FROM consumo_agua WHERE fecha = ?", (str(date.today()),))
-res_agua = cursor.fetchone()[0]
-tot_agua = res_agua if res_agua else 0.0
 
 col_pg1, col_pg2, col_pg3, col_pg4 = st.columns(4)
 with col_pg1:
@@ -413,7 +412,6 @@ for i, edulcorante in enumerate(EDULCORANTES_COLS):
     
     current_col += 1
 
-
 # =====================================================================
 # SECCIÓN 6: LISTA MÓVIL DE ALIMENTOS CONSUMIDOS HOY
 # =====================================================================
@@ -442,12 +440,11 @@ if not df_hoy.empty:
                 # Damos un pequeño espacio para centrar el botón verticalmente
                 st.markdown("<div style='margin-top: 5px;'></div>", unsafe_allow_html=True)
                 if st.button("🗑️", key=f"del_{row['id_consumo']}", help="Eliminar registro", use_container_width=True):
-                    cursor_del = conn.cursor()
-                    cursor_del.execute("DELETE FROM consumo_diario WHERE id = ?", (row['id_consumo'],))
-                    conn.commit()
+                    with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_delete_entry:
+                        cursor_del = conn_delete_entry.cursor()
+                        cursor_del.execute("DELETE FROM consumo_diario WHERE id = ?", (row['id_consumo'],))
+                        conn_delete_entry.commit()
                     st.toast("Alimento eliminado del registro.")
                     st.rerun()
 else:
     st.info("Aún no has registrado ningún alimento hoy.")
-
-conn.close()
