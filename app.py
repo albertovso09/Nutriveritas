@@ -4,21 +4,19 @@ import sqlite3
 from datetime import date
 
 # =====================================================================
-# CONFIGURACIÓN INICIAL Y DISEÑO MÓVIL PREMIUM (CSS TOTAL)
+# CONFIGURACIÓN INICIAL Y DISEÑO MÓVIL PREMIUM
 # =====================================================================
 st.set_page_config(page_title="Nutriveritas", layout="wide")
 
-# Inyección CSS Maestro corregida para eliminar por completo la barra lateral e incrustar diseño limpio
+# Inyección CSS Limpio y seguro
 st.markdown("""
     <style>
-    /* Ocultar barra superior y menú lateral nativo para evitar fallos */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     .stAppDeployButton {display: none;}
     header {visibility: hidden;}
     [data-testid="stSidebar"] {display: none;}
     
-    /* Optimizar márgenes globales en teléfonos */
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 1rem !important;
@@ -26,7 +24,6 @@ st.markdown("""
         padding-right: 0.8rem !important;
     }
 
-    /* CONTENEDOR MAESTRO DE SCROLL */
     .mobile-scroll-box {
         max-height: 340px; 
         overflow-y: auto;
@@ -35,13 +32,12 @@ st.markdown("""
         margin-top: 10px;
     }
 
-    /* DISEÑO DE FILA UNIFICADA (Tarjeta + Botón) */
     .food-row-container {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background-color: #1e293b; /* Azul pizarra oscuro */
-        border-left: 4px solid #ffcc00; /* Borde dorado */
+        background-color: #1e293b; 
+        border-left: 4px solid #ffcc00; 
         border-radius: 8px;
         padding: 10px 12px;
         margin-bottom: 8px;
@@ -66,7 +62,6 @@ st.markdown("""
         line-height: 1.4;
     }
 
-    /* Botón Químico de Borrado Nativo */
     .btn-delete-native {
         background-color: rgba(239, 68, 68, 0.1);
         color: #ef4444;
@@ -89,7 +84,7 @@ EDULCORANTES_COLS = [
 ]
 
 # =====================================================================
-# SECCIÓN 1: BASE DE DATOS
+# SECCIÓN 1: BASE DE DATOS CONTRA ERRORES
 # =====================================================================
 def iniciar_db():
     with sqlite3.connect(DB_FILE, check_same_thread=False) as conn:
@@ -120,32 +115,33 @@ iniciar_db()
 fecha_hoy_texto = date.today().isoformat()
 
 # =====================================================================
-# SECCIÓN 2: CONTROLADORES DE BORRADO DE ALIMENTOS
+# SECCIÓN 2: PROCESAR BORRADOS DE FORMA SEGURA
 # =====================================================================
-query_params = st.query_params
-if "delete_id" in query_params:
-    id_a_borrar = query_params["delete_id"]
+if "delete_id" in st.query_params:
+    id_a_borrar = st.query_params["delete_id"]
     with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_del:
         cursor = conn_del.cursor()
         cursor.execute("DELETE FROM consumo_diario WHERE id = ?", (id_a_borrar,))
         conn_del.commit()
     st.query_params.clear()
+    st.invalidate_pages() # Limpieza de caché nativa para evitar congelamientos
     st.rerun()
 
 # =====================================================================
-# SECCIÓN 3: MENÚ DESPLEGABLE EN PANTALLA PRINCIPAL (¡EL NUEVO DISEÑO!)
+# SECCIÓN 3: METAS DIARIAS (CON CONTROL ANTIBUGS 🛡️)
 # =====================================================================
-# Pasamos las metas a la pantalla principal envueltas en un menú deslizante
 with st.expander("⚙️ Ajustar Metas Diarias (Calorías, Macros y Límites)", expanded=False):
-    meta_cal = st.number_input("Calorías (kcal)", value=1850, step=50)
-    meta_prot = st.number_input("Proteína (g)", value=150, step=5)
-    meta_carb = st.number_input("Carbohidratos (g)", value=425, step=5)
-    meta_gras = st.number_input("Grasas (g)", value=56, step=1)
-    meta_agua = st.number_input("Agua (ml)", value=2000, step=100)
-    meta_fibra = st.number_input("Fibra (g)", value=30, step=5)
-    meta_antiox = st.number_input("Antioxidantes (u)", value=100, step=10)
-    limite_azucar = st.number_input("Azúcar Añadida Max (g)", value=25.0, step=5.0)
-    limite_edulcorantes = st.number_input("Edulcorantes Max (mg)", value=150.0, step=10.0)
+    meta_cal = st.number_input("Calorías (kcal)", value=1850, step=50, min_value=0)
+    meta_prot = st.number_input("Proteína (g)", value=150, step=5, min_value=0)
+    meta_carb = st.number_input("Carbohidratos (g)", value=425, step=5, min_value=0)
+    meta_gras = st.number_input("Grasas (g)", value=56, step=1, min_value=0)
+    meta_agua = st.number_input("Agua (ml)", value=2000, step=100, min_value=0)
+    meta_fibra = st.number_input("Fibra (g)", value=30, step=5, min_value=0)
+    meta_antiox = st.number_input("Antioxidantes (u)", value=100, step=10, min_value=0)
+    
+    # Usamos barras deslizadoras para azúcar y edulcorantes, que son 100% estables en celulares
+    limite_azucar = st.slider("Azúcar Añadida Max (g)", min_value=0.0, max_value=150.0, value=25.0, step=2.5)
+    limite_edulcorantes = st.slider("Edulcorantes Max (mg)", min_value=0.0, max_value=1000.0, value=150.0, step=10.0)
 
 # =====================================================================
 # SECCIÓN 4: BÓVEDA
@@ -154,14 +150,14 @@ with st.expander("🔐 Administrar Bóveda", expanded=False):
     tab_manual, tab_gestionar = st.tabs(["✍️ Carga Manual", "🗑️ Ver / Borrar"])
     
     with tab_manual:
-        with st.form("form_nuevo_alimento"):
+        with st.form("form_nuevo_alimento", clear_on_submit=True):
             nuevo_nombre = st.text_input("Nombre del Alimento")
             col_c, col_p, col_cb, col_g = st.columns(4)
-            nuevo_cal = col_c.number_input("Kcal", min_value=0.0)
-            nuevo_prot = col_p.number_input("Prot (g)", min_value=0.0)
-            nuevo_carb = col_cb.number_input("Carbs (g)", min_value=0.0)
-            nuevo_gras = col_g.number_input("Grasas (g)", min_value=0.0)
-            nuevo_azucar = st.number_input("Azúcar Añadida (g)", min_value=0.0)
+            nuevo_cal = col_c.number_input("Kcal", min_value=0.0, value=0.0)
+            nuevo_prot = col_p.number_input("Prot (g)", min_value=0.0, value=0.0)
+            nuevo_carb = col_cb.number_input("Carbs (g)", min_value=0.0, value=0.0)
+            nuevo_gras = col_g.number_input("Grasas (g)", min_value=0.0, value=0.0)
+            nuevo_azucar = st.number_input("Azúcar Añadida (g)", min_value=0.0, value=0.0)
             btn_guardar = st.form_submit_button("💾 Guardar Alimento")
             
             if btn_guardar and nuevo_nombre.strip():
@@ -172,18 +168,18 @@ with st.expander("🔐 Administrar Bóveda", expanded=False):
                             INSERT INTO productos (nombre, calorias, proteinas, carbohidratos, grasas, sodio, fibra, antioxidantes, azucar_anadida,
                             acesulfame_k, alitame, aspartame, ciclamato, esteviol, neohesperidina, neotame, sacarina, sucralosa, taumatina, advantame)
                             VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-                        ''', (nuevo_nombre.strip(), nuevo_cal, nuevo_prot, nuevo_carb, nuevo_gras, nuevo_azucar))
+                        ''', (nuevo_nombre.strip(), float(nuevo_cal), float(nuevo_prot), float(nuevo_carb), float(nuevo_gras), float(nuevo_azucar)))
                         conn_add.commit()
-                    st.success("¡Guardado!")
+                    st.success("¡Guardado exitosamente!")
                     st.rerun()
                 except sqlite3.IntegrityError:
-                    st.error("Ya existe.")
+                    st.error("Ese alimento ya existe en la bóveda.")
 
     with tab_gestionar:
         with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_gest:
-            df_boveda = pd.read_sql_query("SELECT * FROM productos", conn_gest)
+            df_boveda = pd.read_sql_query("SELECT id, nombre FROM productos", conn_gest)
             if not df_boveda.empty:
-                alimento_borrar = st.selectbox("Alimento a eliminar:", df_boveda['nombre'].tolist(), index=None)
+                alimento_borrar = st.selectbox("Alimento a eliminar de la bóveda:", df_boveda['nombre'].tolist(), index=None)
                 if st.button("🚨 Eliminar Definitivamente") and alimento_borrar:
                     cursor = conn_gest.cursor()
                     cursor.execute("DELETE FROM productos WHERE nombre = ?", (alimento_borrar,))
@@ -201,7 +197,7 @@ with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_main:
 st.markdown("### 🍽️ Agregar Registro")
 if not df_productos.empty:
     producto_seleccionado = st.selectbox("Busca un alimento:", df_productos['nombre'].tolist(), index=None, placeholder="Ej: Huevo Blanco...")
-    gramos_consumir = st.number_input("Gramos / ml consumidos:", min_value=0.0, value=100.0, step=10.0)
+    gramos_consumir = st.number_input("Gramos / ml consumidos:", min_value=0.1, value=100.0, step=10.0)
     
     if producto_seleccionado:
         prod_data = df_productos[df_productos['nombre'] == producto_seleccionado].iloc[0]
@@ -211,7 +207,7 @@ if not df_productos.empty:
         c1.metric("🔥 Kcal", f"{(float(prod_data['calorias'] or 0)*factor):.1f}")
         c2.metric("🥩 Prot", f"{(float(prod_data['proteinas'] or 0)*factor):.1f}g")
         c3.metric("🌾 Carbs", f"{(float(prod_data['carbohidratos'] or 0)*factor):.1f}g")
-        c4.metric("🥑 Grasas", f"{(float(prod_data['grasas'] or 0)*factor):.1f}g")
+        c4.metric("🥑 Grasas", f"{(float(prod_data['grasas'] or 0)*factor):.1f}")
         
         if st.button("➕ Agregar a mi Día", type="primary", use_container_width=True):
             with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_ins:
@@ -232,7 +228,7 @@ with col_w2:
     if st.button("➕ Tomar", type="secondary", use_container_width=True):
         with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_w:
             cursor = conn_w.cursor()
-            cursor.execute("INSERT INTO consumo_agua (fecha, mililitros) VALUES (?, ?)", (fecha_hoy_texto, agua_input))
+            cursor.execute("INSERT INTO consumo_agua (fecha, mililitros) VALUES (?, ?)", (fecha_hoy_texto, float(agua_input)))
             conn_w.commit()
         st.rerun()
 
@@ -253,36 +249,37 @@ with sqlite3.connect(DB_FILE, check_same_thread=False) as conn_prog:
     cursor = conn_prog.cursor()
     cursor.execute("SELECT SUM(mililitros) FROM consumo_agua WHERE fecha = ?", (fecha_hoy_texto,))
     res_agua = cursor.fetchone()[0]
-    tot_agua = res_agua if res_agua else 0.0
+    tot_agua = float(res_agua) if res_agua else 0.0
 
 tot_cal = tot_prot = tot_carb = tot_gras = tot_azucar = tot_edul = 0.0
 if not df_hoy.empty:
     for _, row in df_hoy.iterrows():
-        f = row['gramos'] / 100.0
-        tot_cal += row['calorias'] * f
-        tot_prot += row['proteinas'] * f
-        tot_carb += row['carbohidratos'] * f
-        tot_gras += row['grasas'] * f
-        tot_azucar += row['azucar_anadida'] * f
-        tot_edul += sum([row[ed] for ed in EDULCORANTES_COLS]) * f
+        f = float(row['gramos']) / 100.0
+        tot_cal += float(row['calorias'] or 0) * f
+        tot_prot += float(row['proteinas'] or 0) * f
+        tot_carb += float(row['carbohidratos'] or 0) * f
+        tot_gras += float(row['grasas'] or 0) * f
+        tot_azucar += float(row['azucar_anadida'] or 0) * f
+        tot_edul += sum([float(row[ed] or 0) for ed in EDULCORANTES_COLS]) * f
 
+# Evitamos divisiones por cero de manera ultra-segura
 st.markdown(f"**🔥 Calorías:** {tot_cal:.1f} / {meta_cal} kcal")
-st.progress(min(tot_cal / meta_cal, 1.0) if meta_cal > 0 else 0.0)
+st.progress(min(tot_cal / max(meta_cal, 1), 1.0))
 
 st.markdown(f"**🥩 Proteína:** {tot_prot:.1f}g / {meta_prot}g")
-st.progress(min(tot_prot / meta_prot, 1.0) if meta_prot > 0 else 0.0)
+st.progress(min(tot_prot / max(meta_prot, 1), 1.0))
 
 st.markdown(f"**🌾 Carbs:** {tot_carb:.1f}g / {meta_carb}g")
-st.progress(min(tot_carb / meta_carb, 1.0) if meta_carb > 0 else 0.0)
+st.progress(min(tot_carb / max(meta_carb, 1), 1.0))
 
 st.markdown(f"**💧 Agua:** {tot_agua:.0f}ml / {meta_agua}ml")
-st.progress(min(tot_agua / meta_agua, 1.0) if meta_agua > 0 else 0.0)
+st.progress(min(tot_agua / max(meta_agua, 1), 1.0))
 
 st.markdown(f"**🍬 Azúcar Añadida:** {tot_azucar:.1f}g / {limite_azucar}g")
-st.progress(min(tot_azucar / limite_azucar, 1.0) if limite_azucar > 0 else 0.0)
+st.progress(min(tot_azucar / max(limite_azucar, 1.0), 1.0))
 
 st.markdown(f"**🧪 TOTAL Edulcorantes:** {tot_edul:.1f}mg / {limite_edulcorantes}mg")
-st.progress(min(tot_edul / limite_edulcorantes, 1.0) if limite_edulcorantes > 0 else 0.0)
+st.progress(min(tot_edul / max(limite_edulcorantes, 1.0), 1.0))
 
 # =====================================================================
 # SECCIÓN 7: LISTA CON SCROLL TÁCTIL
@@ -294,12 +291,12 @@ if not df_hoy.empty:
     html_acumulado = '<div class="mobile-scroll-box">'
     
     for index, row in df_hoy.iterrows():
-        f = row['gramos'] / 100.0
-        c_cal = row['calorias'] * f
-        c_prot = row['proteinas'] * f
-        c_carb = row['carbohidratos'] * f
-        c_gras = row['grasas'] * f
-        c_edul = sum([row[ed] for ed in EDULCORANTES_COLS]) * f
+        f = float(row['gramos']) / 100.0
+        c_cal = float(row['calorias'] or 0) * f
+        c_prot = float(row['proteinas'] or 0) * f
+        c_carb = float(row['carbohidratos'] or 0) * f
+        c_gras = float(row['grasas'] or 0) * f
+        c_edul = sum([float(row[ed] or 0) for ed in EDULCORANTES_COLS]) * f
         
         link_borrar = f"?delete_id={row['id_consumo']}"
         
