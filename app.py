@@ -4,25 +4,27 @@ import sqlite3
 from datetime import date
 
 # =====================================================================
-# CONFIGURACIÓN INICIAL Y FUENTE MONTSERRAT PREMIUM
+# CONFIGURACIÓN INICIAL Y FUENTE MONTSERRAT
 # =====================================================================
 st.set_page_config(page_title="Nutriveritas", layout="wide")
 
-# Importamos Montserrat y aplicamos un control de tamaño estricto para evitar amontonamientos
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
 
-    /* Aplicar Montserrat absolutamente a toda la app */
-    html, body, [class*="st-"], div, span, p, h1, h2, h3 {
+    /* Aplicamos Montserrat SOLO a los textos legibles, evitando las etiquetas "span" 
+       para no romper la tipografía de iconos internos de Streamlit */
+    html, body, p, h1, h2, h3, h4, h5, h6, label, input, button, div.stMarkdown {
         font-family: 'Montserrat', sans-serif !important;
     }
-    
-    /* Corregir títulos amontonados en los expanders */
-    .stHeader, [data-testid="stExpander"] p {
-        font-size: 14px !important;
+
+    /* Ajuste fino para los títulos de los desplegables (Expanders) */
+    [data-testid="stExpander"] p {
+        font-size: 15px !important;
         font-weight: 600 !important;
-        line-height: 1.2 !important;
+        margin-bottom: 0 !important;
+        padding-left: 4px;
+        line-height: 1.4 !important;
     }
 
     /* Ocultar elementos innecesarios nativos */
